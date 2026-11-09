@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CNN Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one scrolling study sheet with sticky index; each demo is a worksheet panel, controls left, evidence right. Course palette: navy + Lecture 7 accent. */
+
+:root{
+  --bg:#F6F7F8; --surface:#FFFFFF; --fg:#18243A; --muted:#5D6878; --line:#DCDFE4;
+  --navy:#1B3A5E; --accent:#AD1457; --accent-soft:#F8E6EE; --a:#2869A0; --b:#B8430F; --good:#1E7A45; --good-soft:#E4F3EA; --warn:#A6620C; --warn-soft:#FBF0DD; --dot:#B9C2CD;
+  --font-body:"IBM Plex Sans",-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12161D; --surface:#1A212B; --fg:#E3E7EC; --muted:#9AA5B3; --line:#2C3644;
+  --navy:#9DBDE0; --accent:#F07AAA; --accent-soft:#2E1823; --a:#7FB2E5; --b:#F08A55; --good:#6CCB92; --good-soft:#15291F; --warn:#F0B25C; --warn-soft:#2E2414; --dot:#4A5666; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12161D; --surface:#1A212B; --fg:#E3E7EC; --muted:#9AA5B3; --line:#2C3644;
+  --navy:#9DBDE0; --accent:#F07AAA; --accent-soft:#2E1823; --a:#7FB2E5; --b:#F08A55; --good:#6CCB92; --good-soft:#15291F; --warn:#F0B25C; --warn-soft:#2E2414; --dot:#4A5666; color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15.5px;line-height:1.55;margin:0}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:20px;padding-block:28px 64px}
+header.top{display:grid;gap:6px;padding-block:8px 18px;border-bottom:2px solid var(--accent)}
+.eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);font-weight:600}
+h1{font-size:clamp(26px,4vw,36px);line-height:1.15;margin:0;color:var(--navy);text-wrap:balance}
+.lede{color:var(--muted);max-width:72ch;margin:0}
+nav.idx{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;flex-wrap:wrap;gap:6px 18px;padding-block:10px;border-bottom:1px solid var(--line)}
+nav.idx a{color:var(--navy);text-decoration:none;font-weight:500;font-size:14px}
+nav.idx a:hover,nav.idx a:focus-visible{color:var(--accent);text-decoration:underline}
+section{padding-block:26px 4px}
+h2{font-size:22px;margin:0 0 4px;color:var(--navy);text-wrap:balance}
+h2 .tag{font-family:var(--font-mono);font-size:12px;font-weight:500;letter-spacing:.04em;color:var(--accent);margin-right:10px;vertical-align:2px}
+h3{font-size:16px;margin:0}
+.intro{color:var(--muted);max-width:76ch;margin:0 0 14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px}
+.duo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:20px;align-items:start}
+@media (max-width:780px){.duo{grid-template-columns:minmax(0,1fr)}}
+.duo>*,.stack>*{min-width:0}
+.stack{display:grid;gap:12px;align-content:start}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.fields.two{grid-template-columns:repeat(2,minmax(0,1fr))}.fields.three{grid-template-columns:repeat(3,minmax(0,1fr))}.fields.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+label{display:grid;gap:3px;font-size:13px;color:var(--muted)}
+.fields>label{align-content:end}
+input[type=number],select{font-family:var(--font-mono);font-size:15px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);width:100%}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input:focus-visible,button:focus-visible,summary:focus-visible,select:focus-visible,canvas:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.rangerow{display:grid;grid-template-columns:minmax(0,1fr) 70px;gap:10px;align-items:center}
+.rangerow output{font-family:var(--font-mono);text-align:right;color:var(--fg)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit;font-size:14px;font-weight:600;border-radius:6px;padding:7px 12px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--surface)}
+button.ghost{background:transparent;color:var(--accent)}
+button:disabled{opacity:.4;cursor:default}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) fit-content(60%);gap:4px 14px;font-size:14.5px;padding:12px 14px;border-radius:6px;background:var(--accent-soft);margin:0}
+.kv dt{margin:0}.kv dd{margin:0;overflow-wrap:anywhere;font-family:var(--font-mono);font-variant-numeric:tabular-nums;text-align:right;font-weight:500}
+.kv dd.big{font-size:18px;color:var(--accent);font-weight:600}
+.verdict{font-size:14.5px;margin:0;padding:10px 12px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 6px 6px 0}
+.note{font-size:14px;margin:0;padding:10px 12px;border-left:3px solid var(--warn);background:var(--warn-soft);border-radius:0 6px 6px 0}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+svg,canvas{display:block;width:100%;height:auto;max-width:100%}
+canvas{border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+svg text{fill:var(--muted);font-family:var(--font-mono);font-size:11px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--muted)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.hi{color:var(--accent);font-weight:600}
+.flaws{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.flaw{display:grid;gap:8px;align-content:start}
+.flaw .disc{font-family:var(--font-mono);font-size:12px;color:var(--accent);letter-spacing:.03em}
+.flaw p{margin:0;font-size:14.5px}
+details{border-top:1px dashed var(--line);padding-top:8px}
+.mats{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:flex-start}
+.mat .cap{font-size:12px;color:var(--muted);margin-bottom:3px;font-family:var(--font-body)}
+.mat table{width:auto;font-size:13px;font-family:var(--font-mono)}
+.mat td{padding:3px 7px;text-align:center;border:1px solid var(--line);white-space:nowrap}
+.mat td:first-child{text-align:center}
+.mat td.hl{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.mat input{width:58px;font-family:var(--font-mono);font-size:13px;padding:3px 4px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg);text-align:center}
+summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:14px}
+details p{margin-top:6px!important}
+footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+</style>
+
+</head><body>
+<div class="wrap">
+<header class="top">
+  <div class="eyebrow">Unit 4 &middot; AI &amp; Machine Learning in Warfare &middot; Lecture 7</div>
+  <h1>CNN Lab: Convolution, Pooling &amp; Target Recognition</h1>
+  <p class="lede">Paint an image, pick a kernel and watch the feature map, ReLU and max pooling build up, with the arithmetic for any output cell; size a layer and count its parameters; stack layers to grow a receptive field; and see why a recogniser that is accurate on paper still raises mostly false alarms when targets are rare. Every result updates as you change the inputs.</p>
+  <p class="lede" style="font-size:13.5px">AK DHAMIJA, Researcher &amp; Instructor, AI &amp; Machine Learning &middot; <a href="mailto:dhamija.ak@gmail.com" style="color:inherit">dhamija.ak@gmail.com</a> &middot; <a href="tel:+919811453163" style="color:inherit">9811453163</a></p>
+</header>
+<nav class="idx" aria-label="Sections"><a href="#conv">Convolution</a><a href="#shape">Layer sizing</a><a href="#rf">Receptive field</a><a href="#atr">Base rate</a><a href="#drill">Drill</a></nav>
+<section id="conv">
+  <h2><span class="tag">DEMO 1</span>Convolve, activate, pool</h2>
+  <p class="intro">Click input cells to switch them between dark (0) and bright (9). The kernel slides over every 3&times;3 patch (stride 1, no padding), giving a 4&times;4 feature map; ReLU removes negative evidence; 2&times;2 max pooling keeps the strongest response in each block. Click a feature-map cell to see its arithmetic. The default is the lecture's worked example.</p>
+  <div class="panel">
+    <div class="fields three"><label for="ck">Kernel<select id="ck"><option value="L" selected>K₁ left edge (Prewitt)</option><option value="R">−K₁ right edge</option><option value="T">K₂ top edge</option><option value="B">bottom edge</option><option value="S">blur (all 1/9)</option><option value="P">sharpen</option></select></label>
+      <label for="cp">Image preset<select id="cp"><option value="corner" selected>corner of a bright object</option><option value="bar">vertical bar</option><option value="diag">diagonal line</option><option value="dot">single bright pixel</option><option value="clear">all dark</option></select></label>
+      <label for="cv">Bright value<input id="cv" type="number" value="9" min="1" max="20" step="1"></label></div>
+    <svg id="csvg" viewBox="0 0 1000 300" role="img" aria-label="Input image, kernel, feature map, ReLU map and pooled map" style="margin-top:12px"></svg>
+    <p class="verdict" id="cver"></p>
+  </div>
+</section>
+
+<section id="shape">
+  <h2><span class="tag">DEMO 2</span>Size a convolutional layer</h2>
+  <p class="intro">Output size n<sub>out</sub> = &lfloor;(n + 2p &minus; k)/s&rfloor; + 1; parameters (k&sup2;C<sub>in</sub> + 1)C<sub>out</sub>. Compare with a dense layer that connects every input number to every output number.</p>
+  <div class="panel duo">
+    <div class="stack">
+      <div class="fields three"><label for="sn">Input size n<input id="sn" type="number" value="64" min="1" step="1"></label><label for="sk">Kernel k<input id="sk" type="number" value="3" min="1" step="1"></label><label for="sp">Padding p<input id="sp" type="number" value="1" min="0" step="1"></label>
+      <label for="ss">Stride s<input id="ss" type="number" value="1" min="1" step="1"></label><label for="sci">Channels in<input id="sci" type="number" value="32" min="1" step="1"></label><label for="sco">Filters out<input id="sco" type="number" value="64" min="1" step="1"></label></div>
+      <dl class="kv"><dt>Output</dt><dd class="big" id="s1"></dd><dt>Parameters</dt><dd id="s2"></dd><dt>Multiply-adds</dt><dd id="s3"></dd><dt>Dense layer, same input and output</dt><dd id="s4"></dd></dl>
+      <p class="verdict" id="sver"></p>
+    </div>
+    <div class="stack"><svg id="ssvg" viewBox="0 0 440 260" role="img" aria-label="Parameters of the convolution against the dense layer, log scale"></svg></div>
+  </div>
+</section>
+
+<section id="rf">
+  <h2><span class="tag">DEMO 3</span>Grow a receptive field</h2>
+  <p class="intro">r<sub>&ell;</sub> = r<sub>&ell;&minus;1</sub> + (k &minus; 1)&middot;j<sub>&ell;&minus;1</sub>, with jump j<sub>&ell;</sub> = j<sub>&ell;&minus;1</sub>&middot;s. Stride and pooling multiply the jump, so later layers widen the view fast. The default is the lecture's SAR network.</p>
+  <div class="panel duo">
+    <div class="stack">
+      <div class="fields two" id="rfsel"></div>
+      <div class="tbl"><table id="rtab"></table></div>
+      <dl class="kv"><dt>Receptive field of the last layer</dt><dd class="big" id="r1"></dd><dt>Share of a 64&times;64 chip (one axis)</dt><dd id="r2"></dd></dl>
+      <p class="verdict" id="rver"></p>
+    </div>
+    <div class="stack"><svg id="rsvg" viewBox="0 0 440 280" role="img" aria-label="Receptive field width after each layer"></svg></div>
+  </div>
+</section>
+
+<section id="atr">
+  <h2><span class="tag">DEMO 4</span>Accurate on paper, wrong in the field</h2>
+  <p class="intro">A recogniser flags one target type. Its recall and false-positive rate come from testing; precision in the field also depends on how rare the target is. Lower the recall to model a new viewing angle, camouflage or decoys.</p>
+  <div class="panel duo">
+    <div class="stack">
+      <div class="fields two"><label for="at">Targets in the area<input id="at" type="number" value="20" min="0" step="1"></label><label for="ao">Other vehicles<input id="ao" type="number" value="1000" min="0" step="10"></label></div>
+      <label for="ar">Recall (targets correctly flagged)<div class="rangerow"><input id="ar" type="range" min="0.3" max="1" step="0.01" value="0.9"><output id="aro"></output></div></label>
+      <label for="af">False-positive rate on other vehicles<div class="rangerow"><input id="af" type="range" min="0" max="0.1" step="0.002" value="0.02"><output id="afo"></output></div></label>
+      <dl class="kv"><dt>True flags</dt><dd id="a1"></dd><dt>False flags</dt><dd id="a2"></dd><dt>Precision (flags that are real)</dt><dd class="big" id="a3"></dd><dt>Targets missed</dt><dd id="a4"></dd></dl>
+      <p class="verdict" id="aver"></p>
+    </div>
+    <div class="stack"><svg id="asvg" viewBox="0 0 440 280" role="img" aria-label="Precision against the share of vehicles that are targets"></svg>
+      <div class="legend"><span><i class="sw" style="background:var(--accent)"></i>precision at these rates</span><span><i class="sw" style="background:var(--b)"></i>this area</span></div></div>
+  </div>
+</section>
+
+<section id="drill">
+  <h2><span class="tag">DRILL</span>What went wrong?</h2>
+  <p class="intro">Decide before you open each answer.</p>
+  <div class="flaws" id="drillbox"></div>
+</section>
+
+<footer>AK DHAMIJA, Researcher &amp; Instructor, AI &amp; Machine Learning &middot; Unit 4: Simulation Strategies in Warfare &middot; Lecture 7</footer>
+</div>
+<script>
+(function(){
+
+const $=id=>document.getElementById(id), v=id=>{const x=parseFloat($(id).value);return isFinite(x)?x:0};
+const pc=(x,d=1)=>isFinite(x)?(100*x).toFixed(d)+'%':'—', f=(x,d=2)=>isFinite(x)?x.toFixed(d):'—';
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function Phi(x){const s=x<0?-1:1;x=Math.abs(x)/Math.SQRT2;const t=1/(1+0.3275911*x);const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return 0.5*(1+s*y);}
+function invPhi(p){const a=[-39.6968302866538,220.946098424521,-275.928510446969,138.357751867269,-30.6647980661472,2.50662827745924],b=[-54.4760987982241,161.585836858041,-155.698979859887,66.8013118877197,-13.2806815528857],c=[-0.00778489400243029,-0.322396458041136,-2.40075827716184,-2.54973253934373,4.37466414146497,2.93816398269878],d=[0.00778469570904146,0.32246712907004,2.445134137143,3.75440866190742];const pl=0.02425;let q,r;if(p<pl){q=Math.sqrt(-2*Math.log(p));return(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}if(p>1-pl){q=Math.sqrt(-2*Math.log(1-p));return-(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}q=p-0.5;r=q*q;return(((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);}
+function rng(seed){return function(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;}}
+function gauss(r){const u=Math.max(1e-12,r()),w=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*w);}
+const NS='http://www.w3.org/2000/svg';
+function el(t,a,p){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e;}
+function axes(s,o){/* o: {x0,x1,y0,y1,xmin,xmax,ymin,ymax,xt:[],yt:[],xl,yl,fx,fy} returns X,Y */
+ const X=t=>o.x0+(t-o.xmin)/(o.xmax-o.xmin)*(o.x1-o.x0),Y=t=>o.y0-(t-o.ymin)/(o.ymax-o.ymin)*(o.y0-o.y1);
+ el('line',{x1:o.x0,y1:o.y0,x2:o.x1,y2:o.y0,stroke:css('--line')},s);el('line',{x1:o.x0,y1:o.y0,x2:o.x0,y2:o.y1,stroke:css('--line')},s);
+ (o.yt||[]).forEach(t=>{el('line',{x1:o.x0,y1:Y(t),x2:o.x1,y2:Y(t),stroke:css('--line'),'stroke-dasharray':'2 3'},s);const tx=el('text',{x:o.x0-5,y:Y(t)+4,'text-anchor':'end'},s);tx.textContent=o.fy?o.fy(t):t;});
+ (o.xt||[]).forEach(t=>{const tx=el('text',{x:X(t),y:o.y0+15,'text-anchor':'middle'},s);tx.textContent=o.fx?o.fx(t):t;});
+ if(o.xl){const t=el('text',{x:(o.x0+o.x1)/2,y:o.y0+30,'text-anchor':'middle'},s);t.textContent=o.xl;}
+ if(o.yl){const t=el('text',{x:12,y:(o.y0+o.y1)/2,'text-anchor':'middle',transform:'rotate(-90 12 '+((o.y0+o.y1)/2)+')'},s);t.textContent=o.yl;}
+ return [X,Y];}
+function path(pts,X,Y){return pts.map((p,i)=>(i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('');}
+function drill(id,items){const box=$(id);items.forEach(([d,s,a])=>{const e=document.createElement('div');e.className='panel flaw';e.innerHTML='<div class="disc">'+d+'</div><p>'+s+'</p><details><summary>Show the answer</summary><p>'+a+'</p></details>';box.appendChild(e);});}
+function onTheme(fn){try{window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',fn);new MutationObserver(fn).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});}catch(e){}}
+
+function niceT(a,b){const r=b-a,st=Math.pow(10,Math.floor(Math.log10(r/4)));const m=[1,2,5,10].find(k=>r/(k*st)<=6)*st;const out=[];for(let t=Math.ceil(a/m)*m;t<=b+1e-9;t+=m)out.push(+t.toFixed(6));return out;}
+const fmtI=x=>Math.round(x).toLocaleString('en-GB');
+
+/* Demo 1 */
+const KER={L:[[-1,0,1],[-1,0,1],[-1,0,1]],R:[[1,0,-1],[1,0,-1],[1,0,-1]],T:[[-1,-1,-1],[0,0,0],[1,1,1]],B:[[1,1,1],[0,0,0],[-1,-1,-1]],S:[[1,1,1],[1,1,1],[1,1,1]].map(r=>r.map(x=>x/9)),P:[[0,-1,0],[-1,5,-1],[0,-1,0]]};
+let IMG=[],sel=[2,0];
+function preset(){const p=$('cp').value;IMG=[...Array(6)].map((_,r)=>[...Array(6)].map((_,c)=>p==='corner'?(r>=2&&c>=2?1:0):p==='bar'?(r>=1&&r<=4&&c>=2&&c<=3?1:0):p==='diag'?(r===c?1:0):p==='dot'?(r===2&&c===3?1:0):0));}
+function conv(){
+  const K=KER[$('ck').value],B=v('cv'),X=IMG.map(r=>r.map(x=>x*B));
+  const Y=[...Array(4)].map((_,i)=>[...Array(4)].map((_,j)=>{let t=0;for(let m=0;m<3;m++)for(let n=0;n<3;n++)t+=K[m][n]*X[i+m][j+n];return Math.round(t*100)/100;}));
+  const R=Y.map(r=>r.map(x=>Math.max(0,x))),P=[0,1].map(a=>[0,1].map(b=>Math.max(R[2*a][2*b],R[2*a][2*b+1],R[2*a+1][2*b],R[2*a+1][2*b+1])));
+  const s=$('csvg');s.innerHTML='';const fg=css('--fg'),line=css('--line'),acc=css('--accent'),bb=css('--b');
+  const mx=Math.max(1,...Y.flat().map(Math.abs));
+  function grid(x0,y0,cs,M,kind,lab,click){const t=el('text',{x:x0,y:y0-10},s);t.textContent=lab;
+    M.forEach((row,i)=>row.forEach((val,j)=>{let fill;if(kind==='img')fill=val>0?'#F2F2F2':'#2B2F36';else if(kind==='ker')fill=css('--surface');else{const a=Math.min(1,Math.abs(val)/mx);fill=val>=0?acc:bb;}
+      const r=el('rect',{x:x0+j*cs,y:y0+i*cs,width:cs,height:cs,fill,stroke:line,'fill-opacity':kind==='map'?Math.min(1,Math.abs(val)/mx)*0.85+0.04:1},s);
+      if(click){r.style.cursor='pointer';r.addEventListener('click',()=>click(i,j));}
+      const tx=el('text',{x:x0+j*cs+cs/2,y:y0+i*cs+cs/2+4,'text-anchor':'middle',style:'font-size:'+(cs>40?13:11)+'px;fill:'+(kind==='img'?(val>0?'#18243A':'#E8ECF1'):fg)},s);
+      tx.textContent=kind==='ker'?(Math.abs(val-Math.round(val))>1e-9?'1/9':val):kind==='img'?(val>0?B:0):(Math.abs(val-Math.round(val))>1e-9?val.toFixed(1):val);if(click)tx.style.pointerEvents='none';}));}
+  grid(10,40,38,IMG,'img','input (click to paint)',(i,j)=>{IMG[i][j]=1-IMG[i][j];conv();});
+  grid(262,40+38*1.5,30,K,'ker','kernel');
+  grid(392,40,44,Y,'map','feature map',(i,j)=>{sel=[i,j];conv();});
+  grid(606,40,44,R,'map','after ReLU');
+  grid(820,40+44,44,P,'map','2×2 max pool');
+  const [si,sj]=sel;el('rect',{x:10+sj*38,y:40+si*38,width:114,height:114,fill:'none',stroke:css('--b'),'stroke-width':3},s);el('rect',{x:392+sj*44,y:40+si*44,width:44,height:44,fill:'none',stroke:css('--b'),'stroke-width':3},s);
+  [[245,0],[375,0],[589,0],[803,0]].forEach(([x])=>{const t=el('text',{x,y:135,'text-anchor':'middle',style:'font-size:18px'},s);t.textContent='→';});
+  const terms=[];for(let m=0;m<3;m++)for(let n=0;n<3;n++){const k=K[m][n],x=X[si+m][sj+n];if(k!==0&&x!==0)terms.push((Math.abs(k-Math.round(k))>1e-9?'(1/9)':k)+'×'+x);}
+  const out=Y[si][sj];
+  $('cver').textContent='Output ('+si+','+sj+') = sum of kernel × patch over rows '+si+'–'+(si+2)+', columns '+sj+'–'+(sj+2)+(terms.length?': '+terms.join(' + ').replace(/\+ -/g,'− ')+' = '+out:' = 0 (no bright pixel meets a non-zero weight)')+'. '+(out===0&&terms.length?'Positive and negative weights cancel: the patch is uniform in the direction this kernel tests.':out<0?'Negative evidence: ReLU will remove it.':out>0?'Positive evidence for the pattern; it survives ReLU.':'')+' Pooled map: ['+P.map(r=>r.join(', ')).join(' | ')+'].';
+}
+$('ck').addEventListener('input',conv);$('cv').addEventListener('input',conv);$('cp').addEventListener('input',()=>{preset();conv();});
+
+/* Demo 2 */
+function shape(){
+  const n=v('sn'),k=v('sk'),p=v('sp'),st=Math.max(1,v('ss')),ci=v('sci'),co=v('sco'),no=Math.floor((n+2*p-k)/st)+1;
+  const pr=(k*k*ci+1)*co,ma=no>0?no*no*k*k*ci*co:0,dense=n*n*ci*(no>0?no*no*co:0)+(no>0?no*no*co:0);
+  $('s1').textContent=no>0?no+' × '+no+' × '+co:'invalid (kernel larger than padded input)';$('s2').textContent=fmtI(pr);$('s3').textContent=fmtI(ma);$('s4').textContent=no>0?fmtI(dense):'—';
+  const same=st===1&&no===n;
+  $('sver').textContent=no<=0?'The kernel does not fit: increase the padding or the input size.':(same?'“Same” padding: the output keeps the input size (p = (k − 1)/2 for odd k). ':st>1?'Stride '+st+' downsamples by about '+st+'× per axis, as pooling would, but with learned weights. ':'Without enough padding each layer trims k − 1 pixels. ')+'The convolution needs '+(dense/pr>=10?fmtI(dense/pr)+' times fewer':'fewer')+' parameters than the dense layer, because one small kernel is shared across all '+fmtI(no*no)+' positions.';
+  const s=$('ssvg');s.innerHTML='';if(no<=0)return;const vals=[['convolution',pr],['dense',dense]],lo=0,hi=Math.ceil(Math.log10(Math.max(10,dense)));
+  const [X,Y]=axes(s,{x0:110,x1:430,y0:220,y1:14,xmin:lo,xmax:hi,ymin:0,ymax:2,xt:niceT(0,hi).filter(Number.isInteger),xl:'parameters (log₁₀)',fx:t=>'10^'+t});
+  vals.forEach(([nm,val],i)=>{const y=Y(1.5-i)-18;el('rect',{x:X(0),y,width:Math.max(1,X(Math.log10(Math.max(1,val)))-X(0)),height:36,fill:i?css('--b'):css('--accent')},s);const t=el('text',{x:104,y:y+22,'text-anchor':'end'},s);t.textContent=nm;const xe=X(Math.log10(Math.max(1,val))),inside=xe>330;const t2=el('text',{x:inside?xe-6:xe+6,y:y+22,'text-anchor':inside?'end':'start',style:inside?'fill:#fff':''},s);t2.textContent=fmtI(val);});
+}
+['sn','sk','sp','ss','sci','sco'].forEach(i=>$(i).addEventListener('input',shape));
+
+/* Demo 3 */
+const LOPT=[['none','—',0,0],['c3','conv 3×3, s1',3,1],['c3s2','conv 3×3, s2',3,2],['c5','conv 5×5, s1',5,1],['c7s2','conv 7×7, s2',7,2],['p2','pool 2×2, s2',2,2],['p3s2','pool 3×3, s2',3,2]];
+const RDEF=['c3','p2','c3','p2','c3','p2'];
+(function(){const box=$('rfsel');RDEF.forEach((d,i)=>{const l=document.createElement('label');l.htmlFor='rl'+i;l.textContent='Layer '+(i+1);const sl=document.createElement('select');sl.id='rl'+i;LOPT.forEach(o=>{const op=document.createElement('option');op.value=o[0];op.textContent=o[1];if(o[0]===d)op.selected=true;sl.appendChild(op);});l.appendChild(sl);box.appendChild(l);sl.addEventListener('input',rf);});})();
+function rf(){
+  let r=1,j=1;const rows=[['input',1,1]];
+  for(let i=0;i<6;i++){const o=LOPT.find(x=>x[0]===$('rl'+i).value);if(o[0]==='none')continue;r=r+(o[2]-1)*j;j=j*o[3];rows.push([o[1],r,j]);}
+  $('rtab').innerHTML='<tr><th>after</th><th>receptive field r</th><th>jump j</th></tr>'+rows.map(x=>'<tr><td>'+x[0]+'</td><td>'+x[1]+' × '+x[1]+'</td><td>'+x[2]+'</td></tr>').join('');
+  $('r1').textContent=r+' × '+r;$('r2').textContent=pc(Math.min(1,r/64),0);
+  $('rver').textContent=r>=64?'One unit sees the whole 64 × 64 chip.':'One unit sees '+r+' × '+r+' pixels. A final global average pooling still lets the classifier use the whole chip, by averaging units whose fields tile it.'+(rows.length>2?' Note how each stride-2 step doubles the growth of every later layer.':'');
+  const s=$('rsvg');s.innerHTML='';const n=rows.length,mx=Math.max(64,r);
+  const [X,Y]=axes(s,{x0:110,x1:430,y0:250,y1:10,xmin:0,xmax:mx,ymin:0,ymax:n,xt:niceT(0,mx),xl:'pixels along one axis'});
+  el('rect',{x:X(0),y:Y(n),width:X(64)-X(0),height:Y(0)-Y(n),fill:css('--dot'),opacity:0.18},s);
+  rows.forEach((x,i)=>{const y=Y(n-i)+4,h=(Y(0)-Y(1))-8;el('rect',{x:X(0),y,width:Math.max(2,X(x[1])-X(0)),height:h,fill:css('--accent'),opacity:0.35+0.65*(i/(n-1||1))},s);const t=el('text',{x:104,y:y+h/2+4,'text-anchor':'end'},s);t.textContent=x[0];const t2=el('text',{x:X(x[1])+5,y:y+h/2+4},s);t2.textContent=x[1];});
+  const tt=el('text',{x:X(64)-4,y:Y(n)+12,'text-anchor':'end'},s);tt.textContent='64-pixel chip';
+}
+
+/* Demo 4 */
+function atr(){
+  const T=v('at'),O=v('ao'),r=v('ar'),fp=v('af');$('aro').textContent=pc(r,0);$('afo').textContent=pc(fp,1);
+  const tp=r*T,ff=fp*O,prec=tp+ff>0?tp/(tp+ff):NaN;
+  $('a1').textContent=f(tp,1);$('a2').textContent=f(ff,1);$('a3').textContent=pc(prec,0);$('a4').textContent=f(T-tp,1);
+  $('aver').textContent=!isFinite(prec)?'No flags at all.':prec<0.5?'Most flags are false: targets are rare ('+pc(T/(T+O),1)+' of vehicles), so even a small false-positive rate on the many other vehicles swamps the true flags. Brief precision at the expected target density, not test accuracy.':'Most flags are real at this density. Check how precision falls if targets are rarer or decoys raise the false-positive rate.';
+  const s=$('asvg');s.innerHTML='';const [X,Y]=axes(s,{x0:50,x1:412,y0:240,y1:14,xmin:-3,xmax:0,ymin:0,ymax:1,xt:[-3,-2,-1,0],yt:[0,0.25,0.5,0.75,1],xl:'share of vehicles that are targets',yl:'precision',fx:t=>pc(Math.pow(10,t),t<-2?1:0),fy:t=>pc(t,0)});
+  const pts=[];for(let i=0;i<=120;i++){const lg=-3+3*i/120,pi=Math.pow(10,lg),pr=r*pi/(r*pi+fp*(1-pi));pts.push([lg,isFinite(pr)?pr:1]);}
+  el('path',{d:path(pts,X,Y),stroke:css('--accent'),'stroke-width':2.5,fill:'none'},s);
+  const pi=T/(T+O);if(pi>0&&isFinite(prec)){const lg=Math.max(-3,Math.log10(pi));el('circle',{cx:X(lg),cy:Y(prec),r:6,fill:css('--b')},s);}
+}
+['at','ao','ar','af'].forEach(i=>$(i).addEventListener('input',atr));
+
+drill('drillbox',[
+ ['Benchmark accuracy','A SAR recogniser scores 98% on a public benchmark whose training and test chips share the same depression angle. It is proposed for a new theatre.','<b>Standard operating conditions only.</b> Accuracy can collapse under new angles, configurations, camouflage and terrain. Test on held-out conditions and report per-class recall.'],
+ ['Saliency','Grad-CAM shows the network’s attention on the corners of the chips, where a collection system stamps metadata.','<b>Shortcut learning.</b> The model keys on an artefact correlated with the label. Remove the artefact, re-test, and inspect saliency for every class.'],
+ ['Confident and wrong','A decoy built from plywood and corner reflectors is called a T-72 with probability 0.97.','<b>Over-confidence out of distribution.</b> Softmax outputs are not calibrated certainty. Check calibration, train with decoys, and keep a human confirming high-consequence calls.'],
+ ['Pooling parameters','A design review counts 4 parameters for each 2 × 2 max-pooling layer.','<b>Pooling has no parameters.</b> It is a fixed operation that only downsamples.'],
+ ['Optical pre-training','A team fine-tunes an ImageNet backbone on 300 SAR chips and reports 96% on a random split of those chips.','<b>Weak evidence.</b> SAR differs from optical imagery (speckle, layover, shadows), and a random split of one collection leaks conditions. Evaluate on a separate collection.'],
+ ['Adversarial patch','Red paints a small high-contrast pattern on vehicle roofs; detections drop sharply.','<b>Adversarial vulnerability.</b> Gradient-based perturbations and physical patches can flip CNN outputs. Test against them, use adversarial training, and fuse other sensors.']]);
+function all(){conv();shape();rf();atr();}
+preset();all();onTheme(all);
+
+})();
+</script>
+
+</body></html>

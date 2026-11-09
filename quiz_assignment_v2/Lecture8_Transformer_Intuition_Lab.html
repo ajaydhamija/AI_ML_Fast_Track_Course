@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Transformer Intuition Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one scrolling study sheet with sticky index; each demo is a worksheet panel, controls left, evidence right. Course palette: navy + Lecture 8 accent. */
+
+:root{
+  --bg:#F6F7F8; --surface:#FFFFFF; --fg:#18243A; --muted:#5D6878; --line:#DCDFE4;
+  --navy:#1B3A5E; --accent:#3949AB; --accent-soft:#E8EAF6; --a:#2869A0; --b:#B8430F; --good:#1E7A45; --good-soft:#E4F3EA; --warn:#A6620C; --warn-soft:#FBF0DD; --dot:#B9C2CD;
+  --font-body:"IBM Plex Sans",-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12161D; --surface:#1A212B; --fg:#E3E7EC; --muted:#9AA5B3; --line:#2C3644;
+  --navy:#9DBDE0; --accent:#9FA8F0; --accent-soft:#1D2038; --a:#7FB2E5; --b:#F08A55; --good:#6CCB92; --good-soft:#15291F; --warn:#F0B25C; --warn-soft:#2E2414; --dot:#4A5666; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12161D; --surface:#1A212B; --fg:#E3E7EC; --muted:#9AA5B3; --line:#2C3644;
+  --navy:#9DBDE0; --accent:#9FA8F0; --accent-soft:#1D2038; --a:#7FB2E5; --b:#F08A55; --good:#6CCB92; --good-soft:#15291F; --warn:#F0B25C; --warn-soft:#2E2414; --dot:#4A5666; color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15.5px;line-height:1.55;margin:0}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:20px;padding-block:28px 64px}
+header.top{display:grid;gap:6px;padding-block:8px 18px;border-bottom:2px solid var(--accent)}
+.eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);font-weight:600}
+h1{font-size:clamp(26px,4vw,36px);line-height:1.15;margin:0;color:var(--navy);text-wrap:balance}
+.lede{color:var(--muted);max-width:72ch;margin:0}
+nav.idx{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;flex-wrap:wrap;gap:6px 18px;padding-block:10px;border-bottom:1px solid var(--line)}
+nav.idx a{color:var(--navy);text-decoration:none;font-weight:500;font-size:14px}
+nav.idx a:hover,nav.idx a:focus-visible{color:var(--accent);text-decoration:underline}
+section{padding-block:26px 4px}
+h2{font-size:22px;margin:0 0 4px;color:var(--navy);text-wrap:balance}
+h2 .tag{font-family:var(--font-mono);font-size:12px;font-weight:500;letter-spacing:.04em;color:var(--accent);margin-right:10px;vertical-align:2px}
+h3{font-size:16px;margin:0}
+.intro{color:var(--muted);max-width:76ch;margin:0 0 14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px}
+.duo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:20px;align-items:start}
+@media (max-width:780px){.duo{grid-template-columns:minmax(0,1fr)}}
+.duo>*,.stack>*{min-width:0}
+.stack{display:grid;gap:12px;align-content:start}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.fields.two{grid-template-columns:repeat(2,minmax(0,1fr))}.fields.three{grid-template-columns:repeat(3,minmax(0,1fr))}.fields.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+label{display:grid;gap:3px;font-size:13px;color:var(--muted)}
+.fields>label{align-content:end}
+input[type=number],select{font-family:var(--font-mono);font-size:15px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);width:100%}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input:focus-visible,button:focus-visible,summary:focus-visible,select:focus-visible,canvas:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.rangerow{display:grid;grid-template-columns:minmax(0,1fr) 70px;gap:10px;align-items:center}
+.rangerow output{font-family:var(--font-mono);text-align:right;color:var(--fg)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit;font-size:14px;font-weight:600;border-radius:6px;padding:7px 12px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--surface)}
+button.ghost{background:transparent;color:var(--accent)}
+button:disabled{opacity:.4;cursor:default}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) fit-content(60%);gap:4px 14px;font-size:14.5px;padding:12px 14px;border-radius:6px;background:var(--accent-soft);margin:0}
+.kv dt{margin:0}.kv dd{margin:0;overflow-wrap:anywhere;font-family:var(--font-mono);font-variant-numeric:tabular-nums;text-align:right;font-weight:500}
+.kv dd.big{font-size:18px;color:var(--accent);font-weight:600}
+.verdict{font-size:14.5px;margin:0;padding:10px 12px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 6px 6px 0}
+.note{font-size:14px;margin:0;padding:10px 12px;border-left:3px solid var(--warn);background:var(--warn-soft);border-radius:0 6px 6px 0}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+svg,canvas{display:block;width:100%;height:auto;max-width:100%}
+canvas{border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+svg text{fill:var(--muted);font-family:var(--font-mono);font-size:11px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--muted)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.hi{color:var(--accent);font-weight:600}
+.flaws{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.flaw{display:grid;gap:8px;align-content:start}
+.flaw .disc{font-family:var(--font-mono);font-size:12px;color:var(--accent);letter-spacing:.03em}
+.flaw p{margin:0;font-size:14.5px}
+details{border-top:1px dashed var(--line);padding-top:8px}
+.mats{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:flex-start}
+.mat .cap{font-size:12px;color:var(--muted);margin-bottom:3px;font-family:var(--font-body)}
+.mat table{width:auto;font-size:13px;font-family:var(--font-mono)}
+.mat td{padding:3px 7px;text-align:center;border:1px solid var(--line);white-space:nowrap}
+.mat td:first-child{text-align:center}
+.mat td.hl{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.mat input{width:58px;font-family:var(--font-mono);font-size:13px;padding:3px 4px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg);text-align:center}
+summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:14px}
+details p{margin-top:6px!important}
+footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+</style>
+
+</head><body>
+<div class="wrap">
+<header class="top">
+  <div class="eyebrow">Unit 4 &middot; AI &amp; Machine Learning in Warfare &middot; Lecture 8</div>
+  <h1>Transformer Intuition Lab: Meaning, Context &amp; Attention</h1>
+  <p class="lede">Turn next-word scores into probabilities, measure meaning by angle on a toy embedding map and run word arithmetic, watch one attention step pull &ldquo;battery&rdquo; towards guns or towards power cells with every number shown, and see why dot-product scores must be divided by &radic;d<sub>k</sub>. Every result updates as you change the inputs.</p>
+  <p class="lede" style="font-size:13.5px">AK DHAMIJA, Researcher &amp; Instructor, AI &amp; Machine Learning &middot; <a href="mailto:dhamija.ak@gmail.com" style="color:inherit">dhamija.ak@gmail.com</a> &middot; <a href="tel:+919811453163" style="color:inherit">9811453163</a></p>
+</header>
+<nav class="idx" aria-label="Sections"><a href="#next">Next word</a><a href="#map">Meaning map</a><a href="#att">Attention step</a><a href="#scale">Why √dₖ</a><a href="#drill">Drill</a></nav>
+<section id="next">
+  <h2><span class="tag">DEMO 1</span>A language model's one job</h2>
+  <p class="intro">After &ldquo;Request immediate air &hellip;&rdquo; the model gives a score (logit) to every candidate word; softmax turns scores into probabilities that sum to 1. Temperature divides the scores first: low temperature makes the top word dominate, high temperature spreads the probability.</p>
+  <div class="panel duo">
+    <div class="stack" id="nsl"></div>
+    <div class="stack"><svg id="nsvg" viewBox="0 0 440 250" role="img" aria-label="Probability of each candidate next word"></svg>
+      <dl class="kv"><dt>Most likely next word</dt><dd class="big" id="n1"></dd><dt>Sum of probabilities</dt><dd id="n2"></dd></dl>
+      <p class="verdict" id="nver"></p></div>
+  </div>
+</section>
+
+<section id="map">
+  <h2><span class="tag">DEMO 2</span>Meaning as direction</h2>
+  <p class="intro">Toy two-dimensional embeddings from the lecture. Cosine similarity compares directions: 1 means the same direction, 0 unrelated. Word arithmetic a &minus; b + c moves along a learned direction, such as present &rarr; past tense.</p>
+  <div class="panel duo">
+    <div class="stack">
+      <div class="fields three"><label for="ma">a<select id="ma"></select></label><label for="mb">&minus; b<select id="mb"></select></label><label for="mc">+ c<select id="mc"></select></label></div>
+      <dl class="kv"><dt>a &minus; b + c</dt><dd id="m1"></dd><dt>Nearest word (inputs excluded)</dt><dd class="big" id="m2"></dd><dt>cos(a, b)</dt><dd id="m3"></dd><dt>cos(a, c)</dt><dd id="m4"></dd></dl>
+      <p class="verdict" id="mver"></p>
+    </div>
+    <div class="stack"><svg id="msvg" viewBox="0 0 440 340" role="img" aria-label="Toy meaning map with the arithmetic shown as arrows"></svg></div>
+  </div>
+</section>
+
+<section id="att">
+  <h2><span class="tag">DEMO 3</span>One attention step for &ldquo;battery&rdquo;</h2>
+  <p class="intro">With W<sup>Q</sup> = W<sup>K</sup> = W<sup>V</sup> = I and d<sub>k</sub> = 2, the query is battery's own vector (1, 1). Each neighbour's score is a dot product, scaled by &radic;2; softmax gives the weights; the output z is the weighted blend, added back to battery (the residual). Move a neighbour to see the weights shift.</p>
+  <div class="panel duo">
+    <div class="stack">
+      <label for="as">Sentence<select id="as"><option value="A" selected>A: artillery battery fired</option><option value="B">B: radio battery died</option><option value="C">C: radio battery fired</option></select></label>
+      <div class="fields four"><label for="a1x">word 1, x<input id="a1x" type="number" step="0.1"></label><label for="a1y">word 1, y<input id="a1y" type="number" step="0.1"></label><label for="a3x">word 3, x<input id="a3x" type="number" step="0.1"></label><label for="a3y">word 3, y<input id="a3y" type="number" step="0.1"></label></div>
+      <div class="tbl"><table id="atab"></table></div>
+      <dl class="kv"><dt>Attention output z</dt><dd id="ao1"></dd><dt>Contextual battery = (1,1) + z</dt><dd class="big" id="ao2"></dd><dt>cos with artillery / radio</dt><dd id="ao3"></dd></dl>
+      <p class="verdict" id="aver"></p>
+    </div>
+    <div class="stack"><svg id="asvg" viewBox="0 0 400 380" role="img" aria-label="Word vectors and the move of battery"></svg>
+      <div class="legend"><span><i class="sw" style="background:var(--b)"></i>military words</span><span><i class="sw" style="background:var(--good)"></i>power-cell words</span><span><i class="sw" style="background:var(--accent)"></i>battery: static and contextual</span></div></div>
+  </div>
+</section>
+
+<section id="scale">
+  <h2><span class="tag">DEMO 4</span>Why divide by &radic;d<sub>k</sub>?</h2>
+  <p class="intro">One query is scored against eight keys whose components are random with mean 0 and variance 1. The typical size of a dot product grows like &radic;d<sub>k</sub>. Without scaling, softmax puts nearly all the weight on one key and its gradient vanishes; with scaling the spread stays the same at any width.</p>
+  <div class="panel duo">
+    <div class="stack">
+      <label for="sd">Key length dₖ<div class="rangerow"><input id="sd" type="range" min="1" max="10" step="1" value="6"><output id="sdo"></output></div></label>
+      <label for="ss">Random draw<div class="rangerow"><input id="ss" type="range" min="1" max="20" step="1" value="3"><output id="sso"></output></div></label>
+      <dl class="kv"><dt>Spread (s.d.) of raw scores</dt><dd id="s1"></dd><dt>Largest weight, unscaled</dt><dd class="big" id="s2"></dd><dt>Largest weight, scaled</dt><dd id="s3"></dd></dl>
+      <p class="verdict" id="sver"></p>
+    </div>
+    <div class="stack"><svg id="ssvg" viewBox="0 0 440 260" role="img" aria-label="Attention weights over eight keys with and without scaling"></svg>
+      <div class="legend"><span><i class="sw" style="background:var(--b)"></i>unscaled softmax(q·k)</span><span><i class="sw" style="background:var(--accent)"></i>scaled softmax(q·k/√dₖ)</span></div></div>
+  </div>
+</section>
+
+<section id="drill">
+  <h2><span class="tag">DRILL</span>What went wrong?</h2>
+  <p class="intro">Decide before you open each answer.</p>
+  <div class="flaws" id="drillbox"></div>
+</section>
+
+<footer>AK DHAMIJA, Researcher &amp; Instructor, AI &amp; Machine Learning &middot; Unit 4: Simulation Strategies in Warfare &middot; Lecture 8</footer>
+</div>
+<script>
+(function(){
+
+const $=id=>document.getElementById(id), v=id=>{const x=parseFloat($(id).value);return isFinite(x)?x:0};
+const pc=(x,d=1)=>isFinite(x)?(100*x).toFixed(d)+'%':'—', f=(x,d=2)=>isFinite(x)?x.toFixed(d):'—';
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function Phi(x){const s=x<0?-1:1;x=Math.abs(x)/Math.SQRT2;const t=1/(1+0.3275911*x);const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return 0.5*(1+s*y);}
+function invPhi(p){const a=[-39.6968302866538,220.946098424521,-275.928510446969,138.357751867269,-30.6647980661472,2.50662827745924],b=[-54.4760987982241,161.585836858041,-155.698979859887,66.8013118877197,-13.2806815528857],c=[-0.00778489400243029,-0.322396458041136,-2.40075827716184,-2.54973253934373,4.37466414146497,2.93816398269878],d=[0.00778469570904146,0.32246712907004,2.445134137143,3.75440866190742];const pl=0.02425;let q,r;if(p<pl){q=Math.sqrt(-2*Math.log(p));return(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}if(p>1-pl){q=Math.sqrt(-2*Math.log(1-p));return-(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}q=p-0.5;r=q*q;return(((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);}
+function rng(seed){return function(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;}}
+function gauss(r){const u=Math.max(1e-12,r()),w=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*w);}
+const NS='http://www.w3.org/2000/svg';
+function el(t,a,p){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e;}
+function axes(s,o){/* o: {x0,x1,y0,y1,xmin,xmax,ymin,ymax,xt:[],yt:[],xl,yl,fx,fy} returns X,Y */
+ const X=t=>o.x0+(t-o.xmin)/(o.xmax-o.xmin)*(o.x1-o.x0),Y=t=>o.y0-(t-o.ymin)/(o.ymax-o.ymin)*(o.y0-o.y1);
+ el('line',{x1:o.x0,y1:o.y0,x2:o.x1,y2:o.y0,stroke:css('--line')},s);el('line',{x1:o.x0,y1:o.y0,x2:o.x0,y2:o.y1,stroke:css('--line')},s);
+ (o.yt||[]).forEach(t=>{el('line',{x1:o.x0,y1:Y(t),x2:o.x1,y2:Y(t),stroke:css('--line'),'stroke-dasharray':'2 3'},s);const tx=el('text',{x:o.x0-5,y:Y(t)+4,'text-anchor':'end'},s);tx.textContent=o.fy?o.fy(t):t;});
+ (o.xt||[]).forEach(t=>{const tx=el('text',{x:X(t),y:o.y0+15,'text-anchor':'middle'},s);tx.textContent=o.fx?o.fx(t):t;});
+ if(o.xl){const t=el('text',{x:(o.x0+o.x1)/2,y:o.y0+30,'text-anchor':'middle'},s);t.textContent=o.xl;}
+ if(o.yl){const t=el('text',{x:12,y:(o.y0+o.y1)/2,'text-anchor':'middle',transform:'rotate(-90 12 '+((o.y0+o.y1)/2)+')'},s);t.textContent=o.yl;}
+ return [X,Y];}
+function path(pts,X,Y){return pts.map((p,i)=>(i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('');}
+function drill(id,items){const box=$(id);items.forEach(([d,s,a])=>{const e=document.createElement('div');e.className='panel flaw';e.innerHTML='<div class="disc">'+d+'</div><p>'+s+'</p><details><summary>Show the answer</summary><p>'+a+'</p></details>';box.appendChild(e);});}
+function onTheme(fn){try{window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',fn);new MutationObserver(fn).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});}catch(e){}}
+
+function niceT(a,b){const r=b-a,st=Math.pow(10,Math.floor(Math.log10(r/4)));const m=[1,2,5,10].find(k=>r/(k*st)<=6)*st;const out=[];for(let t=Math.ceil(a/m)*m;t<=b+1e-9;t+=m)out.push(+t.toFixed(6));return out;}
+const softmax=a=>{const m=Math.max(...a),e=a.map(x=>Math.exp(x-m)),s=e.reduce((p,q)=>p+q,0);return e.map(x=>x/s);};
+const dot=(a,b)=>a.reduce((s,x,i)=>s+x*b[i],0),nrm=a=>Math.sqrt(dot(a,a)),cosv=(a,b)=>dot(a,b)/(nrm(a)*nrm(b));
+
+/* Demo 1 */
+const WORDS=[['support',3.1],['strike',2.0],['cover',1.5],['drop',-0.5],['parade',-1.2]];
+(function(){const box=$('nsl');WORDS.forEach(([w,s],i)=>{const l=document.createElement('label');l.htmlFor='nw'+i;l.innerHTML='Score for “'+w+'”<div class="rangerow"><input id="nw'+i+'" type="range" min="-3" max="5" step="0.1" value="'+s+'"><output id="nw'+i+'o"></output></div>';box.appendChild(l);});
+ const l=document.createElement('label');l.htmlFor='nt';l.innerHTML='Temperature τ<div class="rangerow"><input id="nt" type="range" min="0.2" max="3" step="0.1" value="1"><output id="nto"></output></div>';box.appendChild(l);
+ const b=document.createElement('div');b.className='btns';b.innerHTML='<button id="nrs" class="ghost" type="button">Lecture values</button>';box.appendChild(b);})();
+function next(){
+  const sc=WORDS.map((_,i)=>v('nw'+i)),t=v('nt');WORDS.forEach((_,i)=>$('nw'+i+'o').textContent=f(sc[i],1));$('nto').textContent=f(t,1);
+  const p=softmax(sc.map(x=>x/t)),k=p.indexOf(Math.max(...p));
+  $('n1').textContent=WORDS[k][0]+' ('+pc(p[k],1)+')';$('n2').textContent=f(p.reduce((a,b)=>a+b,0),3);
+  $('nver').textContent=t<0.7?'Low temperature: the top word takes almost all the probability, so output is predictable and repetitive.':t>1.5?'High temperature: probability spreads to unlikely words, so sampled text is varied but can wander off-topic.':'At τ = 1 the probabilities are the plain softmax of the scores. Every candidate keeps some probability; nothing is ruled out completely.';
+  const s=$('nsvg');s.innerHTML='';const [X,Y]=axes(s,{x0:70,x1:420,y0:230,y1:10,xmin:0,xmax:1,ymin:0,ymax:5,xt:[0,0.25,0.5,0.75,1],fx:x=>pc(x,0)});
+  p.forEach((q,i)=>{const y=Y(5-i)+6,h=(Y(0)-Y(1))-12;el('rect',{x:X(0),y,width:Math.max(1,X(q)-X(0)),height:h,fill:i===k?css('--accent'):css('--a')},s);const t1=el('text',{x:64,y:y+h/2+4,'text-anchor':'end'},s);t1.textContent=WORDS[i][0];const t2=el('text',{x:X(q)+5,y:y+h/2+4},s);t2.textContent=f(q,3);});
+}
+WORDS.forEach((_,i)=>$('nw'+i).addEventListener('input',next));$('nt').addEventListener('input',next);
+$('nrs').onclick=()=>{WORDS.forEach(([w,s],i)=>$('nw'+i).value=s);$('nt').value=1;next();};
+
+/* Demo 2 */
+const EMB={advance:[1.0,0.2],advanced:[1.1,1.4],retreat:[-1.0,0.25],retreated:[-0.95,1.5],attack:[2.0,0.1],attacked:[2.1,1.3],artillery:[3,0.2],fired:[2.4,0.4],radio:[0.2,3],died:[0.4,2.2],battery:[1,1]};
+(function(){['ma','mb','mc'].forEach((id,k)=>{const sl=$(id);Object.keys(EMB).forEach(w=>{const o=document.createElement('option');o.value=w;o.textContent=w;sl.appendChild(o);});sl.value=['retreat','advance','advanced'][k];sl.addEventListener('input',mapd);});})();
+function mapd(){
+  const a=$('ma').value,b=$('mb').value,c=$('mc').value,r=EMB[a].map((x,i)=>x-EMB[b][i]+EMB[c][i]);
+  const cand=Object.keys(EMB).filter(w=>![a,b,c].includes(w)).map(w=>[w,Math.hypot(r[0]-EMB[w][0],r[1]-EMB[w][1])]).sort((x,y)=>x[1]-y[1]);
+  $('m1').textContent='('+f(r[0],2)+', '+f(r[1],2)+')';$('m2').textContent=cand.length?cand[0][0]+' (distance '+f(cand[0][1],2)+')':'—';$('m3').textContent=f(cosv(EMB[a],EMB[b]),3);$('m4').textContent=f(cosv(EMB[a],EMB[c]),3);
+  $('mver').textContent=(a==='retreat'&&b==='advance'&&c==='advanced')?'The step advance → advanced is a “past-tense” direction. Adding it to retreat lands at (−0.90, 1.45), next to retreated. Grammar has become geometry.':'The arrow c − b is added to a. Where b and c differ by a consistent relationship (tense, sense, unit type), the result lands near a word with the same relationship to a. Nearest is measured here by distance; real systems use cosine.';
+  const s=$('msvg');s.innerHTML='';const [X,Y]=axes(s,{x0:40,x1:430,y0:310,y1:10,xmin:-1.6,xmax:3.9,ymin:-0.4,ymax:3.4,xt:[-1,0,1,2,3],yt:[0,1,2,3]});
+  Object.entries(EMB).forEach(([w,p])=>{const hl=[a,b,c].includes(w);el('circle',{cx:X(p[0]),cy:Y(p[1]),r:hl?6:4,fill:hl?css('--accent'):css('--dot')},s);const t=el('text',{x:X(p[0])+7,y:Y(p[1])-6},s);t.textContent=w;});
+  const arr=(p,q,col,dash)=>el('path',{d:path([p,q],X,Y),stroke:col,'stroke-width':2,fill:'none','stroke-dasharray':dash||''},s);
+  arr(EMB[b],EMB[c],css('--a'),'5 4');arr(EMB[a],r,css('--b'));el('circle',{cx:X(r[0]),cy:Y(r[1]),r:7,fill:'none',stroke:css('--b'),'stroke-width':2.5},s);
+}
+
+/* Demo 3 */
+const SENT={A:[['artillery',[3,0.2]],['fired',[2.4,0.4]]],B:[['radio',[0.2,3]],['died',[0.4,2.2]]],C:[['radio',[0.2,3]],['fired',[2.4,0.4]]]};
+function loadSent(){const S=SENT[$('as').value];$('a1x').value=S[0][1][0];$('a1y').value=S[0][1][1];$('a3x').value=S[1][1][0];$('a3y').value=S[1][1][1];}
+function att(){
+  const S=SENT[$('as').value],w1=[v('a1x'),v('a1y')],w3=[v('a3x'),v('a3y')],q=[1,1],keys=[[S[0][0],w1],['battery',[1,1]],[S[1][0],w3]];
+  const sc=keys.map(k=>dot(q,k[1])),ss=sc.map(x=>x/Math.SQRT2),ex=ss.map(Math.exp),tot=ex.reduce((a,b)=>a+b,0),w=ex.map(e=>e/tot);
+  const z=[0,1].map(d=>keys.reduce((s,k,i)=>s+w[i]*k[1][d],0)),c=[1+z[0],1+z[1]];
+  $('atab').innerHTML='<tr><th>key</th><th>q·k</th><th>÷√2</th><th>e^(·)</th><th>weight</th></tr>'+keys.map((k,i)=>'<tr><td>'+k[0]+' ('+f(k[1][0],1)+', '+f(k[1][1],1)+')</td><td>'+f(sc[i],2)+'</td><td>'+f(ss[i],3)+'</td><td>'+f(ex[i],3)+'</td><td class="'+(w[i]===Math.max(...w)?'hi':'')+'">'+f(w[i],3)+'</td></tr>').join('')+'<tr><td></td><td></td><td></td><td>'+f(tot,3)+'</td><td>1.000</td></tr>';
+  $('ao1').textContent='('+f(z[0],2)+', '+f(z[1],2)+')';$('ao2').textContent='('+f(c[0],2)+', '+f(c[1],2)+')';
+  const ca=cosv(c,[3,0.2]),cr=cosv(c,[0.2,3]);$('ao3').textContent=f(ca,3)+' / '+f(cr,3);
+  $('aver').textContent='The static vector (1, 1) was equally close to artillery and radio (cosine 0.753 each). After one attention step it has cosine '+f(ca,3)+' with artillery and '+f(cr,3)+' with radio: '+(ca-cr>0.2?'pulled towards the gun-unit meaning.':cr-ca>0.2?'pulled towards the power-cell meaning.':'the context is mixed, so the meaning stays ambiguous; later layers and more context must decide.')+' Same query, same arithmetic: only the neighbours differ.';
+  const s=$('asvg');s.innerHTML='';const [X,Y]=axes(s,{x0:34,x1:390,y0:350,y1:10,xmin:-0.2,xmax:4,ymin:-0.2,ymax:4,xt:[0,1,2,3,4],yt:[0,1,2,3,4]});
+  const col=n=>['artillery','fired'].includes(n)?css('--b'):css('--good');
+  [keys[0],keys[2]].forEach(k=>{el('circle',{cx:X(k[1][0]),cy:Y(k[1][1]),r:6,fill:col(k[0])},s);const t=el('text',{x:X(k[1][0])+8,y:Y(k[1][1])+4},s);t.textContent=k[0];});
+  el('circle',{cx:X(1),cy:Y(1),r:6,fill:css('--accent'),opacity:0.5},s);const t=el('text',{x:X(1)-8,y:Y(1)+18,'text-anchor':'end'},s);t.textContent='battery (static)';
+  el('path',{d:path([[1,1],c],X,Y),stroke:css('--accent'),'stroke-width':2.5,fill:'none'},s);el('circle',{cx:X(c[0]),cy:Y(c[1]),r:7,fill:css('--accent')},s);const t2=el('text',{x:X(c[0])+9,y:Y(c[1])-8},s);t2.textContent='in context';
+}
+$('as').addEventListener('input',()=>{loadSent();att();});['a1x','a1y','a3x','a3y'].forEach(i=>$(i).addEventListener('input',att));
+
+/* Demo 4 */
+function scl(){
+  const n=+$('sd').value,d=Math.pow(2,n),seed=+$('ss').value;$('sdo').textContent=d;$('sso').textContent=seed;
+  const r=rng(1000+seed*37),q=[...Array(d)].map(()=>gauss(r)),K=[...Array(8)].map(()=>[...Array(d)].map(()=>gauss(r)));
+  const raw=K.map(k=>dot(q,k)),u=softmax(raw),sc=softmax(raw.map(x=>x/Math.sqrt(d)));
+  const m=raw.reduce((a,b)=>a+b,0)/8,sd=Math.sqrt(raw.reduce((a,b)=>a+(b-m)**2,0)/8);
+  $('s1').textContent=f(sd,2)+'  (√dₖ = '+f(Math.sqrt(d),2)+')';$('s2').textContent=pc(Math.max(...u),1);$('s3').textContent=pc(Math.max(...sc),1);
+  $('sver').textContent=Math.max(...u)>0.95?'Unscaled, one key takes '+pc(Math.max(...u),1)+' of the weight: softmax is saturated, so the gradient reaching W^Q and W^K is almost zero. Scaled, the weights stay spread and learning can proceed.':'At this width the raw scores are still small enough for softmax to spread the weight. Increase dₖ: the raw spread grows like √dₖ and the unscaled weights collapse onto one key.';
+  const s=$('ssvg');s.innerHTML='';const [X,Y]=axes(s,{x0:44,x1:430,y0:226,y1:10,xmin:0.5,xmax:8.5,ymin:0,ymax:1,xt:[1,2,3,4,5,6,7,8],yt:[0,0.25,0.5,0.75,1],xl:'key',fy:t=>pc(t,0)});
+  const bw=(X(2)-X(1))*0.36;u.forEach((x,i)=>{el('rect',{x:X(i+1)-bw,y:Y(x),width:bw,height:Y(0)-Y(x),fill:css('--b')},s);el('rect',{x:X(i+1),y:Y(sc[i]),width:bw,height:Y(0)-Y(sc[i]),fill:css('--accent')},s);});
+}
+['sd','ss'].forEach(i=>$(i).addEventListener('input',scl));
+
+drill('drillbox',[
+ ['ID arithmetic','A prototype feeds raw vocabulary IDs into a regression model to “measure meaning”.','<b>IDs carry no meaning.</b> Their order follows the vocabulary, so distances and averages of IDs are arbitrary. Use learned embeddings.'],
+ ['Static vectors','A search tool built on word2vec returns battery-acid incidents for the query “battery displaced at dawn”.','<b>One vector per word.</b> Static embeddings blur senses. A contextual model (BERT-type encoder) gives “battery” a vector shaped by “displaced”.'],
+ ['Heat-map as proof','A briefing claims a model “decided because of the word enemy”, citing an attention weight of 0.38.','<b>Attention is not explanation.</b> Weights show where information was gathered, not why an output was chosen; values are mixed again by later layers.'],
+ ['Fluent but false','A drafted SALUTE report gives a time of 0630 that appears nowhere in the patrol notes.','<b>Hallucination.</b> Next-token prediction optimises plausibility, not truth. Require each field to cite its source text and keep a human check.'],
+ ['No positions','An engineer removes positional encodings “to save memory”. “Alpha relieves Bravo” and “Bravo relieves Alpha” now produce identical outputs, merely re-ordered.','<b>Attention is order-blind.</b> Without position vectors the model sees a bag of words.'],
+ ['Peeking','A decoder is trained without a causal mask and reaches near-zero training loss, then writes nonsense at inference.','<b>Training leak.</b> Each position could see the word it had to predict and learned to copy it. Mask future positions with −∞ before the softmax.']]);
+function all(){next();mapd();att();scl();}
+loadSent();all();onTheme(all);
+
+})();
+</script>
+
+</body></html>
