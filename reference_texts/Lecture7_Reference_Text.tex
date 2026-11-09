@@ -1,0 +1,281 @@
+\documentclass[11pt]{article}
+\usepackage{notes}
+\definecolor{AccN}{HTML}{AD1457}
+\newcommand{\pcell}[3]{\pgfmathsetmacro{\shade}{int(100-#3*100/9)}\fill[black!\shade!white](#1,#2)rectangle++(1,1);\draw[GreyN!60,line width=0.3pt](#1,#2)rectangle++(1,1);\node[font=\footnotesize,text=\ifnum#3>4 NavyN\else white\fi]at(#1+0.5,#2+0.5){#3};}
+\newcommand{\ncell}[3]{\draw[NavyN,line width=0.4pt,fill=AccN!#3](#1,#2)rectangle++(1,1);}
+\begin{document}
+\titlepg{7}{Convolutional\\Neural Networks}{Filters, feature maps, pooling and the architectures that taught machines to see --- from pixels to SAR target recognition}
+\tableofcontents
+\newpage
+
+\section{How to Use This Text}
+This text accompanies the Lecture~7 slides. It assumes Lecture~6: a neuron computes a weighted sum and a non-linear activation, hidden layers learn feature maps, and backpropagation computes every gradient by the chain rule. A convolutional neural network (CNN) uses exactly these ingredients; what is new is the \emph{shape} of its layers, designed for data laid out on a grid. Work through the worked example of Sections~\ref{sec:conv}--\ref{sec:pool} with a pencil: every number can be checked by hand, and the same four steps (convolve, activate, pool, repeat) underlie every CNN in service.
+
+\section{Images as Grids of Numbers}
+\subsection{Shapes}
+A grey-scale image is a matrix of pixel intensities; a colour image is a three-dimensional array of size height $\times$ width $\times$ channels. A $224\times224$ RGB photograph holds $224\times224\times3=150{,}528$ numbers. SAR and thermal (IR) imagery is usually single-channel; multispectral satellite imagery may have 4--13 channels. A wargame map can also be treated as an image whose channels are layers of information: own units, enemy units, terrain, visibility.
+
+\subsection{Why not a plain fully-connected network?}
+\begin{enumerate}
+\item \textbf{Too many weights.} Connecting a $224\times224\times3$ image to 1,000 hidden units needs $150{,}528\times1{,}000\approx150$ million weights for the first layer alone --- more parameters than there are training images in most defence datasets, an invitation to overfitting.
+\item \textbf{Neighbourhoods are thrown away.} Flattening the image into a list forgets which pixels are adjacent, yet edges, corners and textures are all \emph{local} patterns.
+\item \textbf{No tolerance to position.} A vehicle in the top-left corner and the same vehicle in the centre activate entirely different weights, so the network must learn ``vehicle'' separately at every position.
+\end{enumerate}
+The CNN answers each problem with one idea: \textbf{local connectivity} (each unit looks at a small patch), \textbf{weight sharing} (the same filter is used at every position), and a \textbf{hierarchy} of layers (patches grow into objects). The first layer of a typical CNN on the same RGB image --- 64 filters of size $3\times3\times3$ --- has $(3\cdot3\cdot3+1)\times64=1{,}792$ parameters, about $150{,}528{,}000/1{,}792\approx84{,}000$ times fewer, and detects its patterns anywhere in the image. The design was inspired by Hubel and Wiesel's studies of the visual cortex (1959--62), which found neurons that respond to edges of particular orientation in small regions of the visual field.
+
+\section{The Convolution Operation}\label{sec:conv}
+\begin{definition}{2-D convolution as used in CNNs}
+For an input $x$ and a $k\times k$ kernel $K$ with bias $b$, the output at position $(i,j)$ is
+\[y_{i,j}=\sum_{m=0}^{k-1}\sum_{n=0}^{k-1}K_{m,n}\,x_{i+m,\,j+n}+b.\]
+The kernel is placed on a $k\times k$ patch, multiplied element by element, summed, and written to the output; it then slides one step and repeats. The array of outputs is a \textbf{feature map}.
+\end{definition}
+Each output is the dot product of the kernel with a patch: a \emph{similarity score} that is large when the patch looks like the kernel. An imagery analyst sweeping a stencil across a photograph and noting how well each spot matches is doing the same thing. Strictly, the formula is \emph{cross-correlation}; mathematical convolution flips the kernel first. Because CNN kernels are learned, the flip makes no difference, and every deep-learning library calls the operation ``convolution''.
+
+\subsection{The worked example: set-up}
+The input $X$ is a $6\times6$ image of the corner of a bright object (say a vehicle return) on a dark background: rows 0--1 and columns 0--1 are 0, and the $4\times4$ block in rows 2--5, columns 2--5 is 9.
+\begin{center}\begin{tikzpicture}[scale=0.5]
+\foreach \r/\vals in {0/{0,0,0,0,0,0},1/{0,0,0,0,0,0},2/{0,0,9,9,9,9},3/{0,0,9,9,9,9},4/{0,0,9,9,9,9},5/{0,0,9,9,9,9}}{\foreach \v [count=\c from 0] in \vals {\pcell{\c}{5-\r}{\v}}}
+\draw[AccN,line width=1.5pt](0,1)rectangle(3,4);
+\node[font=\small]at(3,-0.6){input $X$ ($6\times6$); outlined: the patch for output $(2,0)$};
+\end{tikzpicture}\\*{\small\color{GreyN}Figure 1: the input image.}\end{center}
+Two kernels (classical Prewitt edge filters) are used, with stride 1, no padding and bias 0:
+\[K_1=\begin{pmatrix}-1&0&1\\-1&0&1\\-1&0&1\end{pmatrix}\ \text{(left-edge detector)},\qquad K_2=\begin{pmatrix}-1&-1&-1\\0&0&0\\1&1&1\end{pmatrix}\ \text{(top-edge detector)}.\]
+$K_1$ is positive where brightness increases from left to right; $K_2$ where it increases from top to bottom. A trained CNN learns kernels like these in its first layer; nobody programs them.
+
+\subsection{Step 1 --- three positions in detail}
+\begin{example}{individual outputs of $K_1$}
+\textbf{Position (0,0):} the patch is rows 0--2, columns 0--2; only its bottom-right pixel is bright (9) and it meets a $+1$: $y_{0,0}=9$.\\
+\textbf{Position (2,0):} rows 2--4, columns 0--2; the right column is bright in all three rows: $y_{2,0}=9+9+9=27$, the maximum response --- a full vertical edge.\\
+\textbf{Position (2,2):} rows 2--4, columns 2--4, all bright: $y_{2,2}=(-9-9-9)+0+(9+9+9)=0$.
+\end{example}
+\begin{keypoint}
+A uniform region gives zero: the negative and positive columns of an edge kernel cancel. An edge detector responds only where brightness \emph{changes}.
+\end{keypoint}
+
+\subsection{Step 2 --- the full feature maps}
+A $3\times3$ kernel fits in $6-3+1=4$ positions in each direction, so each map is $4\times4$:
+\[X*K_1=\begin{pmatrix}9&9&0&0\\18&18&0&0\\27&27&0&0\\27&27&0&0\end{pmatrix},\qquad X*K_2=\begin{pmatrix}9&18&27&27\\9&18&27&27\\0&0&0&0\\0&0&0&0\end{pmatrix}.\]
+$K_1$ fires down the \emph{left side} of the object (columns 0--1); $K_2$ fires along its \emph{top side} (rows 0--1). The values ramp up $9\to18\to27$ as more of the edge falls inside the window. Each kernel produces one feature map; a layer with 32 kernels produces 32 maps.
+
+\section{Activation and Pooling}\label{sec:pool}
+\subsection{Step 3 --- ReLU}
+After convolution each value passes through $\text{ReLU}(z)=\max(0,z)$. Our two maps are already non-negative, so ReLU leaves them unchanged. Its effect is seen with the mirrored kernel $-K_1$, a \emph{right}-edge detector: on the same image every response flips sign, giving values $-9,-18,-27$ down the left side, and ReLU sets the whole map to zero. The map now says, correctly, ``there is no right-hand edge here''. ReLU keeps evidence \emph{for} a pattern and discards evidence against it, so each map answers one clear question.
+
+Without a non-linearity, two stacked convolutions are a single convolution (a linear map composed with a linear map, as in Lecture~6), and a deep CNN would be no more powerful than one layer. ReLU's gradient is exactly 1 for positive inputs, so it does not shrink the gradients of deep networks the way the sigmoid's ($\le0.25$) does.
+
+\subsection{Step 4 --- max pooling}
+\begin{definition}{max pooling}
+A $p\times p$ max-pooling layer with stride $p$ divides each feature map into non-overlapping $p\times p$ blocks and keeps the largest value in each. Average pooling keeps the mean. Pooling has \textbf{no learned parameters}.
+\end{definition}
+\begin{example}{$2\times2$ max pooling of the two maps}
+$K_1$ map: top-left block $\max(9,9,18,18)=18$; top-right $\max(0,0,0,0)=0$; bottom-left $\max(27,27,27,27)=27$; bottom-right 0. $K_2$ map: $\max(9,18,9,18)=18$, $\max(27,27,27,27)=27$, and 0, 0.
+\[\text{pool}(X*K_1)=\begin{pmatrix}18&0\\27&0\end{pmatrix},\qquad\text{pool}(X*K_2)=\begin{pmatrix}18&27\\0&0\end{pmatrix}.\]
+The pooled maps summarise the scene: a left edge in the lower-left quadrant, a top edge in the upper-right.
+\end{example}
+Pooling buys three things: four times fewer numbers downstream; \textbf{tolerance to small shifts} (moving the edge by one pixel inside a block leaves the block's maximum unchanged); and a coarser, more abstract summary. Modern networks often replace pooling with a stride-2 convolution, which downsamples with learned weights.
+
+\section{Layer Mechanics}
+\subsection{Output size, padding and stride}
+\begin{derivation}{the output-size formula}
+Pad the input with $p$ zeros on each side, so its width becomes $n+2p$. A kernel of width $k$ starting at offset $0$ fits while its start is at most $n+2p-k$. With stride $s$ the starts are $0,s,2s,\dots$, so the number of positions is
+\[n_{\text{out}}=\left\lfloor\frac{n_{\text{in}}+2p-k}{s}\right\rfloor+1.\]
+\end{derivation}
+\begin{center}\small\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{lccccc}\toprule
+\textbf{Case} & $n_{\text{in}}$ & $k$ & $p$ & $s$ & $n_{\text{out}}$\\\midrule
+Worked example & 6 & 3 & 0 & 1 & $(6-3)/1+1=4$\\
+LeNet-5 conv1 & 32 & 5 & 0 & 1 & $(32-5)/1+1=28$\\
+AlexNet conv1 & 227 & 11 & 0 & 4 & $(227-11)/4+1=55$\\
+``Same'' padding & 224 & 3 & 1 & 1 & $(224+2-3)/1+1=224$\\
+Downsampling & 224 & 3 & 1 & 2 & $\lfloor223/2\rfloor+1=112$\\\bottomrule
+\end{tabular}\end{center}
+Without padding every layer shrinks the map and edge pixels are under-used; ``same'' padding $p=(k-1)/2$ (for odd $k$) keeps the size. Stride 2 halves the map.
+
+\subsection{Channels and filters}
+A filter spans \emph{all} input channels: on an input with $C_{\text{in}}$ channels, a $3\times3$ filter has $3\times3\times C_{\text{in}}$ weights, multiplies a $3\times3$ patch in every channel and adds everything (plus one bias) into one number. A layer of $C_{\text{out}}$ filters produces $C_{\text{out}}$ maps.
+\begin{derivation}{parameters in one convolutional layer}
+Each filter has $k\cdot k\cdot C_{\text{in}}$ weights and one bias; there are $C_{\text{out}}$ filters:
+\[\text{params}=(k^2C_{\text{in}}+1)\,C_{\text{out}}.\]
+\end{derivation}
+\begin{example}{counting parameters}
+RGB input, 64 filters of $3\times3$: $(9\cdot3+1)\times64=1{,}792$. A second layer of 128 filters on those 64 maps: $(9\cdot64+1)\times128=73{,}856$. A layer of 256 filters of $3\times3$ on 128 channels: $(9\cdot128+1)\times256=295{,}168$.
+\end{example}
+The count does \emph{not} depend on the image size: a CNN trained on $64\times64$ chips can be run, filter for filter, over a $512\times512$ scene.
+
+\subsection{Receptive fields}
+\begin{definition}{receptive field}
+The receptive field of a unit is the region of the input image that can affect its value.
+\end{definition}
+One $3\times3$ layer sees $3\times3$ pixels; a second $3\times3$ layer on top sees $5\times5$; a third sees $7\times7$. In general, with $r_0=1$ and jump $j_0=1$, a layer with kernel $k$ and stride $s$ gives
+\[r_\ell=r_{\ell-1}+(k-1)\,j_{\ell-1},\qquad j_\ell=j_{\ell-1}\,s.\]
+Three stacked $3\times3$ layers see the same $7\times7$ area as one $7\times7$ layer with $3\times9=27$ weights instead of 49 per channel pair, and three non-linearities instead of one. This is the design rule of VGG.
+\begin{example}{receptive field of the SAR classifier of Section~\ref{sec:sar}}
+Conv1 ($k=3$, $s=1$): $r=3$, $j=1$. Pool1 ($k=2$, $s=2$): $r=3+1\cdot1=4$, $j=2$. Conv2: $r=4+2\cdot2=8$, $j=2$. Pool2: $r=8+1\cdot2=10$, $j=4$. Conv3: $r=10+2\cdot4=18$, $j=4$. Pool3: $r=18+1\cdot4=22$, $j=8$. Each of the $8\times8$ final positions sees a $22\times22$-pixel region of the $64\times64$ chip; global average pooling then combines them all.
+\end{example}
+
+\subsection{The feature hierarchy}
+Each layer combines the previous layer's patterns over a larger area: layer~1 detects edges and blobs; layers 2--3 corners and textures; middle layers parts (wheels, barrels, track skirts); deep layers whole vehicles. Zeiler and Fergus (2013) confirmed this by visualising what trained networks respond to. The analogy is the intelligence process: individual sensor returns, then platoon formations, then a battalion's scheme of manoeuvre --- each level built on the one below. This is the ``features of features'' argument of Lecture~6, made spatial.
+
+\section{A Complete CNN: SAR Target Classifier}\label{sec:sar}
+\subsection{Architecture}
+A 10-class classifier for $64\times64$ single-channel SAR chips:
+\begin{center}\small\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{llrr}\toprule
+\textbf{Layer} & \textbf{Operation} & \textbf{Output shape} & \textbf{Parameters}\\\midrule
+Input & SAR chip & $64\times64\times1$ & 0\\
+Conv1 & 32 filters $3\times3$, same, ReLU & $64\times64\times32$ & $(9\cdot1+1)\cdot32=320$\\
+Pool1 & max $2\times2$ & $32\times32\times32$ & 0\\
+Conv2 & 64 filters $3\times3$, same, ReLU & $32\times32\times64$ & $(9\cdot32+1)\cdot64=18{,}496$\\
+Pool2 & max $2\times2$ & $16\times16\times64$ & 0\\
+Conv3 & 128 filters $3\times3$, same, ReLU & $16\times16\times128$ & $(9\cdot64+1)\cdot128=73{,}856$\\
+Pool3 & max $2\times2$ & $8\times8\times128$ & 0\\
+GAP & global average pooling & $128$ & 0\\
+Dense & 10 classes, softmax & $10$ & $128\cdot10+10=1{,}290$\\\midrule
+\multicolumn{3}{l}{\textbf{Total}} & $\mathbf{93{,}962}$\\\bottomrule
+\end{tabular}\end{center}
+Spatial size halves ($64\to32\to16\to8$) while channels double ($32\to64\to128$): the network trades \emph{where} for \emph{what}. \textbf{Global average pooling} (GAP) averages each $8\times8$ map to a single number, giving a 128-long vector and avoiding a large flatten-then-dense layer. For comparison, one dense layer from the flattened $64\times64$ chip to 128 units would need $4{,}096\times128+128=524{,}416$ parameters --- over five times this entire CNN.
+
+\subsection{Output and loss}
+The dense layer produces one \emph{logit} per class and the softmax converts logits to probabilities, $P(c)=e^{z_c}/\sum_{c'}e^{z_{c'}}$. Training minimises the categorical cross-entropy $L=-\ln P(\text{true class})$, the multi-class form of the binary cross-entropy of Lecture~6.
+\begin{example}{softmax and loss for one chip (illustrative)}
+Logits for five classes T-72, BMP-2, BTR-70, 2S1 and ZSU-23-4: $(4.1,\,1.8,\,0.9,\,0.2,\,-0.4)$. Exponentials: $60.34,\ 6.05,\ 2.46,\ 1.22,\ 0.67$, total $70.74$. Probabilities: $0.853,\ 0.086,\ 0.035,\ 0.017,\ 0.009$. If the chip is a T-72, $L=-\ln0.853=0.159$; if it were actually a BMP-2, $L=-\ln0.086=2.46$ --- a confident mistake costs far more.
+\end{example}
+
+\section{Training a CNN}
+\subsection{Backpropagation through a convolution}
+The chain rule of Lecture~6 applies unchanged; the only new feature is weight sharing. Because one kernel is used at every position, its gradient is the \emph{sum} of the contributions from all positions. If $\delta_{i,j}=\partial L/\partial y_{i,j}$ is the error at output $(i,j)$,
+\[\frac{\partial L}{\partial K_{m,n}}=\sum_{i,j}\delta_{i,j}\,x_{i+m,\,j+n},\qquad\frac{\partial L}{\partial b}=\sum_{i,j}\delta_{i,j},\]
+which is itself a convolution of the input with the error map. The error passed back to the input is a convolution of the error map with the (flipped) kernel.
+\begin{example}{a one-dimensional convolution, forward and backward}
+Input $x=(1,2,0,3)$, kernel $(k_0,k_1)=(1,-1)$, $y_i=k_0x_i+k_1x_{i+1}$: $y=(1-2,\ 2-0,\ 0-3)=(-1,\ 2,\ -3)$. Suppose the errors arriving from above are $\delta=(0.5,\,-1,\,0.2)$.\\
+Kernel gradients: $\partial L/\partial k_0=\sum_i\delta_ix_i=0.5(1)-1(2)+0.2(0)=-1.5$; $\partial L/\partial k_1=\sum_i\delta_ix_{i+1}=0.5(2)-1(0)+0.2(3)=1.6$.\\
+Input gradients: $x_0$ feeds only $y_0$: $0.5\cdot1=0.5$. $x_1$ feeds $y_0$ (via $k_1$) and $y_1$ (via $k_0$): $0.5(-1)+(-1)(1)=-1.5$. $x_2$: $(-1)(-1)+0.2(1)=1.2$. $x_3$: $0.2(-1)=-0.2$.
+\end{example}
+\textbf{Max pooling} passes the gradient only to the input that won the maximum; the others receive zero. For a block $(3,7,1,5)$ the output is 7, and an incoming error $\delta$ goes entirely to the position that held the 7. \textbf{ReLU} passes the gradient where its input was positive and blocks it elsewhere.
+
+\subsection{Practical training}
+\begin{itemize}
+\item \textbf{Data augmentation:} rotations, flips, shifts, crops, added speckle or noise produce free extra examples and teach the invariances the architecture lacks (rotation, scale).
+\item \textbf{Batch normalisation:} rescales each channel's activations to zero mean and unit variance over a mini-batch, with a learned scale and shift; it stabilises and speeds training.
+\item \textbf{Dropout:} randomly silences a fraction of units during training so that no unit can rely on another; it reduces overfitting.
+\item \textbf{Optimiser and schedule:} stochastic gradient descent with momentum, or Adam, with a learning rate reduced as training progresses.
+\end{itemize}
+
+\section{Landmark Architectures}
+\begin{center}\small\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\textwidth}{@{}l l l X@{}}\toprule
+\textbf{Network} & \textbf{Year} & \textbf{Size} & \textbf{Contribution}\\\midrule
+LeNet-5 & 1998 & $\sim$60K & conv--pool--conv--pool--dense for handwritten digits; the template for every CNN since\\
+AlexNet & 2012 & $\sim$60M & ReLU, dropout, GPU training; ImageNet top-5 error 15.3\% against 26.2\% for the next-best entry\\
+VGG-16 & 2014 & 138M & only $3\times3$ kernels, stacked deep\\
+GoogLeNet & 2014 & $\sim$7M & Inception modules: parallel kernel sizes, $1\times1$ convolutions to cut channels\\
+ResNet & 2015 & up to 152 layers & residual (skip) connections; ensembles reached 3.57\% top-5 error\\\bottomrule
+\end{tabularx}\end{center}
+\begin{derivation}{why residual connections help}
+A residual block outputs $y=F(x)+x$, where $F$ is a few convolutional layers. Then
+\[\frac{\partial y}{\partial x}=\frac{\partial F}{\partial x}+I,\]
+so the gradient always has a direct path through the identity term, however small $\partial F/\partial x$ becomes. This counters the vanishing gradients of Lecture~6 and made networks of 100+ layers trainable. The same skip connection appears in every transformer block (Lecture~9).
+\end{derivation}
+
+\section{Transfer Learning}
+Labelled military imagery is scarce. \textbf{Transfer learning} starts from a backbone trained on a large dataset (such as ImageNet) and adapts it.
+\begin{itemize}
+\item \textbf{Feature extraction:} freeze the backbone and train only a new classification head --- fast, and works with very little data.
+\item \textbf{Fine-tuning:} also update the later backbone layers with a small learning rate --- better when more labelled data exist.
+\end{itemize}
+It works because early-layer features (edges, corners, textures) are generic; only the top layers are specific to the original task.
+\begin{pitfall}{optical pre-training for SAR}
+Radar imagery looks very different from optical photographs: speckle, shadows, layover, specular returns. The benefit of optical pre-training is smaller for SAR and must be checked on held-out SAR data. Synthetic training data from simulators and CAD models is a common supplement, but simulated and real returns differ --- a distribution shift of exactly the kind discussed in Lecture~1.
+\end{pitfall}
+
+\section{Defence and Wargaming Applications}
+\begin{defence}{automatic target recognition (ATR)}
+Classifying vehicles in SAR chips is the classic case. On the public MSTAR benchmark (10 vehicle classes) published CNNs report accuracies above 95\% under its \emph{standard operating conditions}, in which training and test chips come from similar collection geometry and vehicle configurations. Accuracy falls, sometimes sharply, for new depression angles, configurations, articulation or camouflage. The first question to ask of any reported accuracy is how the test set was built.
+\end{defence}
+\begin{itemize}
+\item \textbf{Object detection} in EO/IR imagery: detectors such as Faster R-CNN and YOLO output a box and a class for every object --- aircraft on aprons, ships in harbour, vehicles on roads.
+\item \textbf{Change detection and segmentation:} compare images over time; label every pixel (road, building, crater) to update terrain databases for simulations.
+\item \textbf{Wargaming:} the map is an image; CNN policies read unit positions, terrain and visibility layers as channels, the approach used in game-playing systems such as AlphaGo. The DQN of Lecture~10 can use a CNN in exactly this way.
+\item \textbf{Beyond images:} 1-D CNNs on radar pulse trains, acoustic and RF signals (emitter identification); spectrograms treated as images.
+\end{itemize}
+
+\section{Failure Modes}
+\subsection{Adversarial examples}
+Tiny, carefully chosen pixel changes can flip a prediction with high confidence. Goodfellow et al.\ (2014) showed a panda image classified as a gibbon after a perturbation invisible to the eye, produced by the \emph{fast gradient sign method}
+\[x'=x+\varepsilon\,\text{sign}\big(\nabla_xL(x,y)\big),\]
+which uses backpropagation to the \emph{input} to find the direction that most increases the loss. Physical versions --- printed patches, painted patterns --- have fooled detectors in field tests. An adversary who knows a recogniser is in use has an incentive to exploit this.
+\subsection{Shortcut learning}
+A network may key on the background, sensor artefacts or image borders instead of the target. A frequently retold, probably apocryphal, story describes a ``tank detector'' that had learned the weather in the photographs; the lesson is real even if the story is not.
+\subsection{Distribution shift and over-confidence}
+New sensors, seasons, terrain or decoys can collapse performance with no warning, because the softmax still outputs a confident-looking probability. CNNs are often over-confident on inputs unlike their training data.
+\subsection{Checking what the network looks at}
+Saliency methods such as Grad-CAM (Selvaraju et al., 2017) colour the pixels that most influenced a decision. If the ``hot'' region is the background rather than the vehicle, the model is not trustworthy, whatever its accuracy.
+\begin{keypoint}
+Mitigations: diverse training data, adversarial training, test sets drawn from new conditions, calibration checks, and a human analyst confirming every high-consequence call.
+\end{keypoint}
+
+\section{CNNs and Transformers Compared}
+\begin{center}\small\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\textwidth}{@{}>{\bfseries}p{3.2cm} X X@{}}\toprule
+& \textbf{CNN} & \textbf{Vision transformer (ViT)}\\\midrule
+Basic operation & convolution over a fixed local window & self-attention: every patch to every patch\\
+Built-in assumption & nearby pixels matter; the same pattern can appear anywhere & none --- relations are learned from data\\
+Data needed & works well on small and medium datasets & usually needs large datasets or pre-training\\
+Long-range context & only through depth & from the first layer\\
+Cost vs image size & linear in the number of pixels & quadratic in the number of patches\\\bottomrule
+\end{tabularx}\end{center}
+Both use dot-product similarity, ReLU-type non-linearities, residual connections, softmax with cross-entropy, and backpropagation. Many current vision systems are hybrids: a CNN front end for local features feeding attention layers for global context. For small, specialised defence datasets, a CNN remains a strong and economical first choice. Lectures~8 and~9 develop attention.
+
+\section{Common Misconceptions}
+\begin{pitfall}{five errors to avoid}
+\textbf{``Engineers design the filters.''} All kernel values are learned by backpropagation; hand-made edge filters are a teaching device.
+\textbf{``Pooling is learned.''} Max and average pooling have no parameters.
+\textbf{``A $3\times3$ filter looks at 9 numbers.''} It looks at $3\times3\times C_{\text{in}}$ numbers --- all input channels.
+\textbf{``CNNs are fully shift-invariant.''} Convolution is shift-\emph{equivariant} and pooling adds only approximate invariance; rotations and scale changes need augmentation.
+\textbf{``A high softmax probability means a reliable call.''} CNNs are often over-confident, especially on unfamiliar inputs.
+\end{pitfall}
+
+\section{Summary of Equations}
+\begin{center}\small\renewcommand{\arraystretch}{1.6}
+\begin{tabular}{ll}\toprule
+\textbf{Convolution} & $y_{i,j}=\sum_{m,n}K_{m,n}\,x_{i+m,j+n}+b$\\
+\textbf{Activation, pooling} & $\text{ReLU}(z)=\max(0,z)$;\ max pool keeps the largest value per block\\
+\textbf{Output size} & $n_{\text{out}}=\lfloor(n_{\text{in}}+2p-k)/s\rfloor+1$\\
+\textbf{Parameters} & $(k^2C_{\text{in}}+1)\,C_{\text{out}}$ per convolutional layer\\
+\textbf{Receptive field} & $r_\ell=r_{\ell-1}+(k-1)j_{\ell-1}$,\ \ $j_\ell=j_{\ell-1}s$\\
+\textbf{Output} & $P(c)=\text{softmax}(W\,\text{GAP}(\text{features})+b)_c$,\ \ $L=-\ln P(\text{true class})$\\
+\textbf{Kernel gradient} & $\partial L/\partial K_{m,n}=\sum_{i,j}\delta_{i,j}\,x_{i+m,j+n}$\\
+\textbf{Residual block} & $y=F(x)+x$,\ \ $\partial y/\partial x=\partial F/\partial x+I$\\\bottomrule
+\end{tabular}\end{center}
+
+\section{Check Your Understanding}
+\begin{question}{1}
+In the worked example, what is the output at position $(1,0)$ for $K_1$, and why?
+\end{question}
+\textbf{Answer.} The patch is rows 1--3, columns 0--2. Its right column holds $0,9,9$ and meets $+1$ weights; the other columns are 0. So $y_{1,0}=0+9+9=18$: two of the three rows of the window contain the edge.
+
+\begin{question}{2}
+A $128\times128$ input meets a $5\times5$ kernel with $p=2$, $s=2$. What is the output size?
+\end{question}
+\textbf{Answer.} $\lfloor(128+4-5)/2\rfloor+1=\lfloor127/2\rfloor+1=63+1=64$, so $64\times64$.
+
+\begin{question}{3}
+How many parameters has a layer of 256 filters of $3\times3$ on 128 input channels?
+\end{question}
+\textbf{Answer.} $(3\cdot3\cdot128+1)\times256=1{,}153\times256=295{,}168$.
+
+\begin{question}{4}
+Why does a uniform bright region give 0 with an edge kernel?
+\end{question}
+\textbf{Answer.} The kernel's weights sum to zero ($-3+0+3$), so on a constant patch of value $c$ the output is $c\times0=0$. Edge kernels measure \emph{differences} in brightness, not brightness itself.
+
+\begin{question}{5}
+Name two ways an adversary could defeat a CNN-based target recogniser.
+\end{question}
+\textbf{Answer.} Any two of: adversarial patches or paint patterns that push the input across a decision boundary; decoys built to match what the network keys on; camouflage, netting or configuration changes that move the target out of the training distribution; operating at viewing geometries absent from training; exploiting shortcuts (backgrounds or contexts the network relies on).
+
+\begin{question}{6}
+What is the receptive field of one unit after two $3\times3$ convolutions with stride 1 followed by a $2\times2$ max pool with stride 2?
+\end{question}
+\textbf{Answer.} $r=3$, then $3+2=5$, then $5+1\times1=6$: a $6\times6$ region.
+\end{document}
