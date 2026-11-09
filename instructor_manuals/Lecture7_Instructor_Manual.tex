@@ -1,0 +1,353 @@
+\documentclass[11pt]{article}
+\usepackage{notes}
+\definecolor{AccN}{HTML}{AD1457}
+\fancyhead[L]{\small\color{NavyN}\nouppercase{\leftmark}}\fancyhead[R]{\small\color{GreyN}Instructor Manual --- Lecture 7}
+\usepackage{longtable,multicol,needspace}
+\setlength{\emergencystretch}{2em}
+\newtcolorbox{instr}[1]{nb,colback=AccN!6,colframe=AccN,title={#1}}
+\newtcolorbox{prob}{nb,colback=BluN!5,colframe=BluN,title={Problem statement}}
+\newtcolorbox{soln}{nb,colback=GrnN!5,colframe=GrnN,title={Model solution and marking points}}
+\newtcolorbox{sayit}{nb,colback=white,colframe=NavyN,title={Read aloud to students}}
+\newtcolorbox{live}[1]{nb,colback=AccN!4,colframe=AccN,title={#1}}
+\providecommand{\cn}[1]{\textbf{(#1)}}
+\begin{document}
+\begin{titlepage}\centering\vspace*{2.2cm}
+{\color{AccN}\large\bfseries LECTURE 7\par}\vspace{0.6cm}
+{\color{NavyN}\Huge\bfseries Convolutional Neural Networks\par}\vspace{0.6cm}
+{\color{AccN}\rule{0.7\textwidth}{1.5pt}}\par\vspace{0.6cm}
+{\LARGE Instructor Manual\par}\vspace{0.4cm}
+{\large\begin{minipage}{0.85\textwidth}\centering Filters, feature maps, pooling and the architectures that taught machines to see --- from pixels to target recognition\\Case study: SAR target recognition with a 93,962-parameter CNN\end{minipage}\par}\vspace{2cm}
+{\large AK DHAMIJA, Researcher \& Instructor, AI \& Machine Learning\par}\vspace{0.2cm}
+{\normalsize \href{mailto:dhamija.ak@gmail.com}{dhamija.ak@gmail.com} \quad\textbullet\quad 9811453163\par}\vspace{0.3cm}
+{Unit 4: Simulation Strategies in Warfare --- AI \& Machine Learning in Warfare\par}\vfill
+\begin{tcolorbox}[colback=NavyN!4,colframe=NavyN,boxrule=0.6pt,arc=2pt,width=0.9\textwidth]\small
+\textbf{This manual contains:} the 45-minute session plan with timings; a slide-by-slide teaching guide for all 24 slides; key messages, facilitation tips, anticipated questions with model answers, misconceptions and in-class activities; live demonstrations with the interactive studio; consistency notes on the source material; the complete quiz answer key with rationale and scoring rules; and the assignment with marking scheme and full model solutions.
+\end{tcolorbox}
+\end{titlepage}
+\tableofcontents\newpage
+
+
+\needspace{12\baselineskip}\section{Lecture at a Glance}
+
+\begin{center}\small\renewcommand{\arraystretch}{1.25}\begin{tabularx}{\textwidth}{@{}>{\bfseries}p{3.3cm}>{\raggedright\arraybackslash}X@{}}\toprule
+
+\textcolor{NavyN}{Lecture}&7 --- Convolutional Neural Networks\\
+\textcolor{NavyN}{Duration}&45 minutes: 5 min opening Q\&A, 30 min teaching, 10 min auto-quiz\\
+\textcolor{NavyN}{Slides}&24 (Beamer PDF, 16:9), 9 sections\\
+\textcolor{NavyN}{Prerequisite}&Lecture~6; students should have attempted its quiz and assignment.\\
+\textcolor{NavyN}{Student materials}&\texttt{Lecture7\_Slides\_Beamer.pdf}; \texttt{Lecture7\_Reference\_Text.pdf}; \texttt{Lecture7\_Quiz.html}; \texttt{Lecture7\_Answers\_Assignment.html} (release after the quiz)\\
+\textcolor{NavyN}{Interactive studio}&\texttt{Lecture7\_CNN\_Lab.html} (live demonstrations in Section~\ref{sec:live})\\
+\textcolor{NavyN}{Assessment}&Auto-quiz: 15 MCQs, 40~s each, $+1/-0.25$. Assignment: 5 problems, 100 marks, plus a 20-mark bonus problem.\\\bottomrule\end{tabularx}\end{center}
+
+\subsection*{Overview}Lecture~7 introduces convolutional neural networks, the workhorse of imagery analysis. It explains why fully-connected networks waste parameters and ignore locality, then builds the convolution operation by hand on a $6\times6$ image of a bright object's corner with two Prewitt edge kernels, followed by ReLU and $2\times2$ max pooling. Padding, stride, channels, the output-size formula, parameter counting and receptive fields lead to a complete 93,962-parameter SAR target classifier. Landmark architectures (LeNet to ResNet), transfer learning, defence applications in automatic target recognition, and the failure modes every analyst must know (adversarial examples, shortcut learning, distribution shift, over-confidence) complete the lecture, with a comparison to Transformers as the bridge to Lectures~8--9.
+
+\subsection*{Learning outcomes}By the end of the lecture students should be able to:\begin{enumerate}\item Explain why fully-connected networks are a poor fit for images and how local connectivity and weight sharing fix this.\item Compute a convolution, ReLU and max pooling by hand.\item Use the output-size formula with padding and stride, and count the parameters of a convolutional layer and a full CNN.\item Compute receptive fields and explain the feature hierarchy.\item Assess a CNN-based recogniser for defence use, including operating conditions, base rates and adversarial risk.\end{enumerate}
+
+\subsection*{Syllabus mapping}\begin{itemize}\item Deep learning for imagery --- \textbf{convolutional neural networks} and automatic target recognition\end{itemize}
+
+\needspace{12\baselineskip}\section{Session Plan (45 Minutes)}
+
+\begin{center}\begin{tikzpicture}[x=0.3444cm,y=1cm]
+\fill[AmbN!40](0,0)rectangle(5,1);\node[font=\scriptsize\bfseries,align=center]at(2.5,0.5){Q\&A\\recap};
+\fill[AccN!25](5.00,0)rectangle(7.50,1);\draw[white,thick](5.00,0)--(5.00,1);
+\node[font=\tiny,rotate=90,anchor=center]at(6.25,0.5){\parbox{0.9cm}{\centering \S1}};
+\fill[NavyN!18](7.50,0)rectangle(10.00,1);\draw[white,thick](7.50,0)--(7.50,1);
+\node[font=\tiny,rotate=90,anchor=center]at(8.75,0.5){\parbox{0.9cm}{\centering \S2}};
+\fill[AccN!25](10.00,0)rectangle(11.50,1);\draw[white,thick](10.00,0)--(10.00,1);
+\node[font=\tiny,rotate=90,anchor=center]at(10.75,0.5){\parbox{0.9cm}{\centering \S3}};
+\fill[NavyN!18](11.50,0)rectangle(18.50,1);\draw[white,thick](11.50,0)--(11.50,1);
+\node[font=\tiny,rotate=90,anchor=center]at(15.00,0.5){\parbox{0.9cm}{\centering \S4}};
+\fill[AccN!25](18.50,0)rectangle(22.50,1);\draw[white,thick](18.50,0)--(18.50,1);
+\node[font=\tiny,rotate=90,anchor=center]at(20.50,0.5){\parbox{0.9cm}{\centering \S5}};
+\fill[NavyN!18](22.50,0)rectangle(25.00,1);\draw[white,thick](22.50,0)--(22.50,1);
+\node[font=\tiny,rotate=90,anchor=center]at(23.75,0.5){\parbox{0.9cm}{\centering \S6}};
+\fill[AccN!25](25.00,0)rectangle(27.50,1);\draw[white,thick](25.00,0)--(25.00,1);
+\node[font=\tiny,rotate=90,anchor=center]at(26.25,0.5){\parbox{0.9cm}{\centering \S7}};
+\fill[NavyN!18](27.50,0)rectangle(32.50,1);\draw[white,thick](27.50,0)--(27.50,1);
+\node[font=\tiny,rotate=90,anchor=center]at(30.00,0.5){\parbox{0.9cm}{\centering \S8}};
+\fill[AccN!25](32.50,0)rectangle(35.00,1);\draw[white,thick](32.50,0)--(32.50,1);
+\node[font=\tiny,rotate=90,anchor=center]at(33.75,0.5){\parbox{0.9cm}{\centering \S9}};
+\fill[RedN!30](35,0)rectangle(45,1);\node[font=\scriptsize\bfseries,align=center]at(40,0.5){Auto-quiz\\15 Q $\times$ 40 s};
+\draw[NavyN](0,0)rectangle(45,1);
+\foreach \tt in {0,5,10,15,20,25,30,35,40,45}{\draw[NavyN](\tt,0)--(\tt,-0.12);\node[font=\tiny,below]at(\tt,-0.12){\tt};}
+\node[font=\scriptsize,below]at(22.5,-0.45){minutes};
+\end{tikzpicture}\end{center}
+
+\begin{center}\small\renewcommand{\arraystretch}{1.2}\begin{tabularx}{\textwidth}{@{}l l X r@{}}\toprule\textbf{Clock} & \textbf{Slides} & \textbf{Segment} & \textbf{Min}\\\midrule
+
+0:00--5:00 & --- & \textbf{Opening Q\&A and recap} (see prompts below) & 5\\
+
+5:00--7:30 & 2--3 & 1. Overview (2 slides) & 2.5\\
+
+7:30--10:00 & 4--5 & 2. Why Convolutions (2 slides) & 2.5\\
+
+10:00--11:30 & 6 & 3. Convolution (1 slide) & 1.5\\
+
+11:30--18:30 & 7--11 & 4. Worked Example (5 slides) & 7\\
+
+18:30--22:30 & 12--14 & 5. Layer Mechanics (3 slides) & 4\\
+
+22:30--25:00 & 15--16 & 6. A Complete CNN (2 slides) & 2.5\\
+
+25:00--27:30 & 17--18 & 7. Architectures (2 slides) & 2.5\\
+
+27:30--32:30 & 19--22 & 8. Defence Applications (4 slides) & 5\\
+
+32:30--35:00 & 23--24 & 9. Summary (2 slides) & 2.5\\
+
+35:00--45:00 & --- & \textbf{Auto-quiz} (instructions 1 min, 15 questions $\times$ 40 s = 10 min of answering; collect scores) & 10\\\bottomrule\end{tabularx}\end{center}
+
+Slide 1 is the title slide and is shown while students settle. The teaching segment covers 23 content slides in 30 minutes, an average pace of 0.8 slides per minute. 
+
+Minute allocations are proportional to slide counts; shift time towards the sections students find hardest.
+
+\begin{instr}{Opening Q\&A prompts (first 5 minutes)}\begin{enumerate}\item From Lecture~6: why does a network without activation functions collapse into one linear map?\item What is the output error signal for a sigmoid unit with binary cross-entropy?\item How many parameters does a dense layer from 100 inputs to 10 units have?\end{enumerate}Take two or three answers per prompt; correct misconceptions briefly and note any topic that needs revisiting.\end{instr}
+
+\needspace{12\baselineskip}\section{Slide-by-Slide Teaching Guide}
+
+Each subsection gives the slide range, the suggested time, what to emphasise, and the slide titles in order. Numbers refer to pages of the Beamer PDF.
+
+\needspace{8\baselineskip}\subsection{1. Overview \normalfont\small\color{GreyN}(slides 2--3, about 2.5 min)}
+
+\textbf{Teaching note.} Objectives; the big picture: convolve, activate, pool, repeat, then classify.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}2 & Learning Objectives \& Session Structure\\
+3 & The Big Picture in One Slide\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{2. Why Convolutions \normalfont\small\color{GreyN}(slides 4--5, about 2.5 min)}
+
+\textbf{Teaching note.} Images as arrays (height, width, channels); 150 million first-layer weights for a dense layer on a $224\times224\times3$ image; lost locality and position tolerance.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}4 & Images Are Grids of Numbers\\
+5 & Why Not a Plain Fully-Connected Network?\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{3. Convolution \normalfont\small\color{GreyN}(slide 6, about 1.5 min)}
+
+\textbf{Teaching note.} The kernel as a sliding template: element-wise product and sum; a similarity score; cross-correlation versus convolution.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}6 & Convolution: A Template Sliding Over the Image\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{4. Worked Example \normalfont\small\color{GreyN}(slides 7--11, about 7 min)}
+
+\textbf{Teaching note.} The corner image and $K_1$, $K_2$; outputs $(0,0)=9$, $(2,0)=27$, uniform patch $=0$; the full $4\times4$ maps; ReLU and the mirrored kernel; pooled maps $\begin{pmatrix}18&0\\27&0\end{pmatrix}$ and $\begin{pmatrix}18&27\\0&0\end{pmatrix}$.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}7 & Worked Example: Set-Up\\
+8 & Worked Example --- Step 1: Two Positions in Detail\\
+9 & Worked Example --- Step 2: The Full Feature Maps\\
+10 & Worked Example --- Step 3: ReLU Non-Linearity\\
+11 & Worked Example --- Step 4: Max Pooling ($2\times2$, stride 2)\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{5. Layer Mechanics \normalfont\small\color{GreyN}(slides 12--14, about 4 min)}
+
+\textbf{Teaching note.} $n_{\text{out}}=\lfloor(n+2p-k)/s\rfloor+1$; ``same'' padding; filters span all input channels, $(k^2C_{\text{in}}+1)C_{\text{out}}$ parameters; receptive fields grow $3\to5\to7$ and faster after striding.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}12 & Padding and Stride: Controlling the Output Size\\
+13 & Channels and Filters: Convolution in 3-D\\
+14 & Receptive Fields and the Feature Hierarchy\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{6. A Complete CNN \normalfont\small\color{GreyN}(slides 15--16, about 2.5 min)}
+
+\textbf{Teaching note.} The SAR classifier layer by layer: 320, 18,496, 73,856 and 1,290 parameters; global average pooling; softmax and cross-entropy; backpropagation through a shared kernel and through max pooling.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}15 & A Complete CNN: 10-Class SAR Target Classifier\\
+16 & Output and Training\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{7. Architectures \normalfont\small\color{GreyN}(slides 17--18, about 2.5 min)}
+
+\textbf{Teaching note.} LeNet, AlexNet, VGG, GoogLeNet and ResNet, each with its key idea; residual connections; transfer learning and its limits for SAR.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}17 & Landmark CNN Architectures\\
+18 & Transfer Learning: When Labelled Military Data Is Scarce\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{8. Defence Applications \normalfont\small\color{GreyN}(slides 19--22, about 5 min)}
+
+\textbf{Teaching note.} ATR on MSTAR-type data and the meaning of standard operating conditions; detection, change detection, wargame maps as images; adversarial patches, shortcut learning, distribution shift, Grad-CAM; CNNs compared with Transformers; misconceptions.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}19 & CNNs in Defence and Wargaming\\
+20 & Failure Modes Every Analyst Must Know\\
+21 & CNNs and Transformers Compared\\
+22 & Common Misconceptions\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{9. Summary \normalfont\small\color{GreyN}(slides 23--24, about 2.5 min)}
+
+\textbf{Teaching note.} Summary and quick check; look-ahead to Transformers.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}23 & Summary and Quick Check\\
+24 & Looking Ahead --- Lecture 8: Transformers, Intuitively\\\end{tabularx}\end{center}
+
+\needspace{12\baselineskip}\section{Key Messages}Students should leave the room able to state these in their own words:\begin{keypoint}\begin{enumerate}\item A CNN is a neural network whose layers are local and share weights: far fewer parameters, and patterns are found anywhere in the image.\item A convolution output is a similarity score between a kernel and a patch; ReLU keeps positive evidence; pooling summarises and adds shift tolerance.\item Size and cost follow simple formulas: output size, $(k^2C_{\text{in}}+1)C_{\text{out}}$ parameters, and receptive fields that grow with depth and stride.\item Kernels are learned by the same backpropagation as Lecture~6; a shared kernel's gradient is the sum over positions.\item Benchmark accuracy is not field performance: test new conditions, check base-rate precision, calibration and saliency, and keep a human on high-consequence calls.\end{enumerate}\end{keypoint}
+
+\needspace{12\baselineskip}\section{Facilitation Tips}\begin{itemize}\item Draw the $6\times6$ grid on the board and have students compute outputs $(0,0)$, $(1,0)$ and $(2,2)$ before showing slide~9.\item In the CNN Lab, switch the kernel to the right-edge detector to show ReLU zeroing a whole map, then paint a vertical bar to see both edges.\item Spend the last minutes of teaching on failure modes; this is where defence students most often over-trust the technology.\end{itemize}
+
+\needspace{12\baselineskip}\section{Anticipated Questions and Model Answers}
+
+\begin{question}{anticipated question}\textbf{Q:} Do engineers design the kernels?\par\smallskip\textbf{A:} No. Kernels are initialised randomly and learned by backpropagation; first-layer kernels often resemble edge detectors, but nobody programs them.\end{question}
+
+\begin{question}{anticipated question}\textbf{Q:} Why does a CNN need many filters per layer?\par\smallskip\textbf{A:} Each filter detects one pattern; a layer needs many patterns (edges at several orientations, textures, blobs), and later layers combine them.\end{question}
+
+\begin{question}{anticipated question}\textbf{Q:} Can a CNN recognise a vehicle it has never seen from this angle?\par\smallskip\textbf{A:} Not reliably. Convolution gives shift tolerance, not rotation or viewpoint invariance; those must come from training data, augmentation or architecture.\end{question}
+
+\needspace{12\baselineskip}\section{Common Misconceptions}\begin{center}\small\renewcommand{\arraystretch}{1.35}\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}\toprule\textbf{Misconception} & \textbf{Correction}\\\midrule``A $3\times3$ filter looks at nine numbers.'' & It looks at $3\times3\times C_{\text{in}}$ numbers across all input channels.\\
+``Pooling layers learn something.'' & Max and average pooling have no parameters.\\
+``97\% accuracy means 97\% of target calls are right.'' & Precision depends on the base rate; with rare targets most calls can be false.\\\bottomrule\end{tabularx}\end{center}
+
+\needspace{12\baselineskip}\section{In-Class Activities and Discussion Prompts}\label{sec:act}\begin{itemize}\item \textbf{Human convolution:} a $6\times6$ grid on the floor or board; students hold kernel cards and call out outputs as the ``kernel'' slides.\item \textbf{Red-team the recogniser:} teams list five ways an adversary could make a SAR recogniser fail in the field and one test for each.\end{itemize}
+
+\needspace{12\baselineskip}\section{Run It Live: Studio Demonstrations}\label{sec:live}
+
+Project \texttt{Lecture7\_CNN\_Lab.html} (it is a single HTML file and runs offline in any browser; every result updates as an input changes). Each demonstration below follows the same rhythm: \textbf{set} the inputs, \textbf{ask} the class to commit to a prediction (a show of hands or a one-word answer), then \textbf{reveal} the result and \textbf{land} the point. The numbers are exactly what the page shows for the settings given; simulations use fixed random seeds, so they repeat every time. The 45-minute plan has little slack: choose the one demonstration marked \emph{first choice} for class, and use the others in a tutorial, a second session, or as homework with the drill cards at the bottom of the page.
+
+\begin{live}{Demo 1: Convolve, activate, pool by hand (about 4 min, with \S4 Worked Example) --- \emph{first choice}}\textbf{Set.} Demo~1 at its defaults: the corner image of the lecture, kernel $K_1$. Click feature-map cell $(2,0)$.\par\smallskip\textbf{Ask.} ``What does this left-edge kernel give at $(2,0)$, and what will the pooled map be?''\par\smallskip\textbf{Reveal.} $1\times9+1\times9+1\times9=\textbf{27}$; pooled map $\begin{pmatrix}18&0\\27&0\end{pmatrix}$, as on the slides. Switch to $-K_1$ (right edge): the value is $-27$ and after ReLU the pooled map is all zeros.\par\smallskip\textbf{Land the point.} A convolution output is a similarity score; ReLU keeps positive evidence only; pooling summarises the strongest evidence per block.\end{live}
+
+\begin{live}{Demo 2: Paint a bar (about 2 min, with \S4 Worked Example)}\textbf{Set.} Choose the \textsf{vertical bar} preset with $K_1$.\par\smallskip\textbf{Ask.} ``Where will the left-edge kernel respond, and where will its mirror respond?''\par\smallskip\textbf{Reveal.} $K_1$: pooled $\begin{pmatrix}27&0\\27&0\end{pmatrix}$ on the bar's left side; $-K_1$ responds on the right side. Two channels together describe a bar.\par\smallskip\textbf{Land the point.} Each filter detects one pattern; a deeper layer combines channels into larger patterns.\end{live}
+
+\begin{live}{Demo 3: Count before you build (about 2 min, with \S5 Layer Mechanics)}\textbf{Set.} Demo~2 at its defaults: $64\times64$ input, $3\times3$ kernel, $p=1$, $s=1$, 32 channels in, 64 filters.\par\smallskip\textbf{Ask.} ``How many parameters does this layer have, and how many would a dense layer with the same input and output need?''\par\smallskip\textbf{Reveal.} Output $64\times64\times64$; \textbf{18,496} parameters; the dense layer would need 34,360,000,512. Set $s=2$: the output halves to $32\times32$ with the same parameters.\par\smallskip\textbf{Land the point.} Weight sharing makes the parameter count independent of image size; stride trades resolution for cost.\end{live}
+
+\begin{live}{Demo 4: Precision in the field (about 2 min, with \S8 Defence Applications)}\textbf{Set.} Demo~4 at its defaults: 20 targets, 1,000 other vehicles, recall 90\%, false-positive rate 2\%.\par\smallskip\textbf{Ask.} ``What share of the recogniser's target calls are real?''\par\smallskip\textbf{Reveal.} 18 true and 20 false flags: precision \textbf{47\%}. Lower recall to 60\% (a new viewing angle): precision falls to 38\%.\par\smallskip\textbf{Land the point.} Report precision at the expected target density and test under new conditions; benchmark accuracy is not field performance.\end{live}
+
+\needspace{12\baselineskip}\section{Quiz Administration and Answer Key}
+
+\begin{sayit}``You will now take a 15-question quiz. Each question has four options and exactly one correct answer. You have 40 seconds per question; the quiz advances automatically when time runs out. A correct answer scores $+1$, a wrong answer $-0.25$, and an unanswered question 0. The maximum is 15 and the minimum is $-3.75$. Because of the negative marking, guessing blindly among four options gains nothing on average --- answer when you can eliminate options. Your score and a full review appear at the end.''\end{sayit}
+
+\textbf{Delivery.} Open \texttt{Lecture7\_Quiz.html} on each student device (or project it and collect answers on paper). The page enforces the timer and computes the score with negative marking. Release \texttt{Lecture7\_Answers\_Assignment.html} only after all students have finished.
+
+\subsection*{Answer key}\begin{center}\small\renewcommand{\arraystretch}{1.3}\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}\hline \textbf{1} & \textbf{2} & \textbf{3} & \textbf{4} & \textbf{5} & \textbf{6} & \textbf{7} & \textbf{8} & \textbf{9} & \textbf{10} & \textbf{11} & \textbf{12} & \textbf{13} & \textbf{14} & \textbf{15}\\\hline C & B & A & D & C & A & C & D & B & A & D & C & B & C & A\\\hline\end{tabular}\end{center}
+
+\textbf{Interpreting scores.} 12 or more: secure command of the lecture. 9--11.75: good, review missed items. Below 9: revisit the reference text before the assignment. If more than half the class misses a question, revisit that point in the next lecture's opening Q\&A.
+
+\subsection*{Questions, options and rationale}
+
+{\small
+
+\noindent\textbf{Q1.} Connecting a $224\times224\times3$ image to 1,000 dense hidden units needs about how many first-layer weights?\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] 150 thousand\item[B.] 1.5 million\item[\textbf{C.}] \textbf{150 million}~{\color{GrnN}$\checkmark$}\item[D.] 15 billion\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} $150{,}528\times1{,}000\approx1.5\times10^8$: far too many for typical defence datasets.\par\medskip
+
+\noindent\textbf{Q2.} Which pair of ideas lets a CNN use far fewer parameters than a dense network on images?\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] Dropout and batch normalisation\item[\textbf{B.}] \textbf{Local connectivity and weight sharing}~{\color{GrnN}$\checkmark$}\item[C.] Softmax and cross-entropy\item[D.] Large learning rate and momentum\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} Each unit looks at a small patch, and the same kernel is reused at every position.\par\medskip
+
+\noindent\textbf{Q3.} An edge-detecting kernel applied to a patch of uniform brightness gives:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[\textbf{A.}] \textbf{0}~{\color{GrnN}$\checkmark$}\item[B.] The maximum response\item[C.] A negative response\item[D.] The patch's mean brightness\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} Its positive and negative weights sum to zero, so it responds only where brightness changes.\par\medskip
+
+\noindent\textbf{Q4.} A $3\times3$ kernel slides with stride 1 and no padding over a $6\times6$ image. The feature map is:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] $6\times6$\item[B.] $3\times3$\item[C.] $5\times5$\item[\textbf{D.}] \textbf{$4\times4$}~{\color{GrnN}$\checkmark$}\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} $6-3+1=4$ positions in each direction.\par\medskip
+
+\noindent\textbf{Q5.} Using $n_{\text{out}}=\lfloor(n+2p-k)/s\rfloor+1$, a $128\times128$ input with a $5\times5$ kernel, $p=2$, $s=2$ gives:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] $62\times62$\item[B.] $63\times63$\item[\textbf{C.}] \textbf{$64\times64$}~{\color{GrnN}$\checkmark$}\item[D.] $128\times128$\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} $\lfloor127/2\rfloor+1=63+1=64$.\par\medskip
+
+\noindent\textbf{Q6.} How many parameters has a layer of 64 filters of size $3\times3$ applied to a 32-channel input?\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[\textbf{A.}] \textbf{18,496}~{\color{GrnN}$\checkmark$}\item[B.] 18,432\item[C.] 576\item[D.] 2,112\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} $(3\cdot3\cdot32+1)\times64=289\times64=18{,}496$.\par\medskip
+
+\noindent\textbf{Q7.} A $2\times2$ max-pooling layer with stride 2 has how many learned parameters?\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] 4\item[B.] 1 per channel\item[\textbf{C.}] \textbf{0}~{\color{GrnN}$\checkmark$}\item[D.] Equal to the number of input channels squared\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} Pooling is a fixed operation; it only downsamples.\par\medskip
+
+\noindent\textbf{Q8.} The $2\times2$ max pool of the block $\begin{pmatrix}9&9\\18&18\end{pmatrix}$ is:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] 13.5\item[B.] 54\item[C.] 9\item[\textbf{D.}] \textbf{18}~{\color{GrnN}$\checkmark$}\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} Max pooling keeps the largest value; average pooling would give 13.5.\par\medskip
+
+\noindent\textbf{Q9.} What does ReLU do to a feature map from a right-edge detector applied to an image that has only a left edge?\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] Doubles every value\item[\textbf{B.}] \textbf{Sets the whole map to zero}~{\color{GrnN}$\checkmark$}\item[C.] Leaves it unchanged\item[D.] Flips every sign\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} All responses are negative, and $\max(0,z)$ removes them: the map says there is no right edge.\par\medskip
+
+\noindent\textbf{Q10.} In the lecture's 10-class SAR CNN (three conv blocks, GAP, dense), the total parameter count is:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[\textbf{A.}] \textbf{93,962}~{\color{GrnN}$\checkmark$}\item[B.] 524,416\item[C.] 92,672\item[D.] 1,290\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} $320+18{,}496+73{,}856+1{,}290=93{,}962$, about one-fifth of a single dense layer on the flattened chip.\par\medskip
+
+\noindent\textbf{Q11.} After two $3\times3$ convolutions with stride 1, one unit's receptive field is:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] $3\times3$\item[B.] $6\times6$\item[C.] $9\times9$\item[\textbf{D.}] \textbf{$5\times5$}~{\color{GrnN}$\checkmark$}\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} $r=1+2+2=5$. Stacking small kernels grows the view while keeping parameters low.\par\medskip
+
+\noindent\textbf{Q12.} Because one kernel is used at every position, its gradient during backpropagation is:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] Taken only from the first position\item[B.] The average of the input pixels\item[\textbf{C.}] \textbf{The sum of the contributions from all positions}~{\color{GrnN}$\checkmark$}\item[D.] Zero\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} $\partial L/\partial K_{m,n}=\sum_{i,j}\delta_{i,j}x_{i+m,j+n}$.\par\medskip
+
+\noindent\textbf{Q13.} Residual connections $y=F(x)+x$ made very deep CNNs trainable mainly because:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] They remove the need for ReLU\item[\textbf{B.}] \textbf{$\partial y/\partial x=\partial F/\partial x+I$ gives the gradient a direct path}~{\color{GrnN}$\checkmark$}\item[C.] They halve the number of parameters\item[D.] They replace pooling\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} The identity term keeps gradients from vanishing however small $\partial F/\partial x$ becomes.\par\medskip
+
+\noindent\textbf{Q14.} A SAR recogniser reports 97\% accuracy on chips collected at the same depression angle as its training data. The most important next question is:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] Which optimiser was used?\item[B.] How many GPUs trained it?\item[\textbf{C.}] \textbf{What is the accuracy under new angles, configurations and camouflage?}~{\color{GrnN}$\checkmark$}\item[D.] What colour map displays the chips?\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} Standard-condition accuracy can collapse under distribution shift; operating conditions decide fielded performance.\par\medskip
+
+\noindent\textbf{Q15.} The fast gradient sign method creates an adversarial example by:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[\textbf{A.}] \textbf{Adding $\varepsilon\,\text{sign}(\nabla_xL)$ to the input}~{\color{GrnN}$\checkmark$}\item[B.] Retraining the network on noisy data\item[C.] Rotating the image by 90 degrees\item[D.] Lowering the learning rate\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} Backpropagating to the input finds the direction that most increases the loss; a tiny step can flip the class.\par\medskip
+
+}
+
+\needspace{12\baselineskip}\section{Assignment: Marking Scheme and Model Solutions}
+
+\textbf{Instructions.} Five problems, 100 marks, plus a 20-mark bonus problem (Problem 6). Reference: Lecture 7 reference text.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.25}\begin{tabularx}{0.85\textwidth}{@{}l X r@{}}\toprule\textbf{\#} & \textbf{Problem} & \textbf{Marks}\\\midrule1 & Convolution, ReLU and pooling by hand & 20\\
+2 & The output-size formula & 20\\
+3 & Parameter counts for an EO recogniser & 20\\
+4 & Receptive fields & 20\\
+5 & Evaluation brief for a SAR recogniser & 20\\
+6 & Problem 6 (bonus): Gradients through max pooling and a shared kernel & 20\\\midrule & \textbf{Total} & \textbf{100} + 20 bonus\\\bottomrule\end{tabularx}\end{center}
+
+\begin{instr}{General marking guidance}\begin{itemize}
+\item Marks for each part are shown in square brackets in the problem statement.
+\item Award method marks for correct working even when an arithmetic slip carries through; deduct once for the slip, not again for its consequences.
+\item For interpretive parts, full marks need (i) the correct conclusion, (ii) the reason, and (iii) an operational implication or caveat.
+\item Answers that state a number without uncertainty, baseline or caveat where one is required lose a mark per part.
+\item Suggested deadline: one week after the lecture; return marked work before the next quiz on the same topic.
+\end{itemize}\end{instr}
+
+\needspace{8\baselineskip}\subsection{Problem 1: Convolution, ReLU and pooling by hand \normalfont\small\color{GreyN}(20 marks)}
+
+\begin{prob}A $6\times6$ image is 0 everywhere except a bright vertical bar of value 6 in rows 1--4, columns 2--3 (rows and columns numbered from 0). Use $K_1=\begin{pmatrix}-1&0&1\\-1&0&1\\-1&0&1\end{pmatrix}$, stride 1, no padding, bias 0.
+
+(a) Compute the outputs at positions $(0,0)$, $(1,0)$ and $(0,2)$. [6]\newline (b) Write the full $4\times4$ feature map. [5]\newline (c) Apply ReLU, then $2\times2$ max pooling with stride 2. [5]\newline (d) Repeat (c) for $-K_1$ and interpret both pooled maps. [4]\end{prob}
+
+\begin{soln}\textbf{(a)} $(0,0)$: rows 0--2, columns 0--2; only column 2 (weight $+1$) holds bright pixels, in rows 1 and 2: $6+6=\mathbf{12}$. $(1,0)$: rows 1--3, column 2 bright in all three rows: $\mathbf{18}$. $(0,2)$: columns 2--4; column 2 ($-1$) is bright in rows 1--2, column 4 ($+1$) is dark: $\mathbf{-12}$.
+
+\textbf{(b)} $\begin{pmatrix}12&12&-12&-12\\18&18&-18&-18\\18&18&-18&-18\\12&12&-12&-12\end{pmatrix}$. Positive on the bar's left edge (dark to bright), negative on its right edge (bright to dark).
+
+\textbf{(c)} ReLU keeps the left half and zeros the right: $\begin{pmatrix}12&12&0&0\\18&18&0&0\\18&18&0&0\\12&12&0&0\end{pmatrix}$. Max pool: $\begin{pmatrix}18&0\\18&0\end{pmatrix}$.
+
+\textbf{(d)} $-K_1$ flips every sign; after ReLU and pooling: $\begin{pmatrix}0&18\\0&18\end{pmatrix}$. Together the two maps say ``a rising edge on the left, a falling edge on the right, along the full height'': a vertical bar. A deeper layer can combine these two channels into a ``bar'' detector.\end{soln}
+
+\needspace{8\baselineskip}\subsection{Problem 2: The output-size formula \normalfont\small\color{GreyN}(20 marks)}
+
+\begin{prob}Use $n_{\text{out}}=\lfloor(n+2p-k)/s\rfloor+1$.
+
+(a) A $224\times224$ input meets a $7\times7$ convolution with $p=3$, $s=2$, followed by $3\times3$ max pooling with $p=1$, $s=2$. Give both output sizes. [6]\newline (b) A $64\times64$ input meets a $5\times5$ convolution with no padding and stride 1. [3]\newline (c) What padding keeps the size unchanged (``same'') for a $k\times k$ kernel with stride 1? Check it for $k=3$ and $k=5$. [5]\newline (d) A $32\times32$ map meets a $3\times3$ convolution with $p=1$, $s=2$. Compare this downsampling with $2\times2$ max pooling. [6]\end{prob}
+
+\begin{soln}\textbf{(a)} Convolution: $\lfloor(224+6-7)/2\rfloor+1=\lfloor111.5\rfloor+1=\mathbf{112}$. Pooling: $\lfloor(112+2-3)/2\rfloor+1=55+1=\mathbf{56}$. (This is the stem of ResNet.)
+
+\textbf{(b)} $64-5+1=\mathbf{60}$: each layer without padding trims $k-1$ pixels.
+
+\textbf{(c)} $n+2p-k+1=n\Rightarrow p=(k-1)/2$: $p=1$ for $k=3$, $p=2$ for $k=5$. Check: $(n+2-3)+1=n$ and $(n+4-5)+1=n$.
+
+\textbf{(d)} $\lfloor(32+2-3)/2\rfloor+1=15+1=\mathbf{16}$, the same as $2\times2$ max pooling. The strided convolution downsamples with \textit{learned} weights and $(9C_{\text{in}}+1)C_{\text{out}}$ parameters; pooling is fixed, parameter-free and gives some tolerance to small shifts.\end{soln}
+
+\needspace{8\baselineskip}\subsection{Problem 3: Parameter counts for an EO recogniser \normalfont\small\color{GreyN}(20 marks)}
+
+\begin{prob}A recogniser for $128\times128$ RGB chips has: Conv A 32 filters $3\times3$; Conv B 64 filters $3\times3$; Conv C 128 filters $3\times3$; Conv D 64 filters $1\times1$; global average pooling; dense 6-class output. Each conv uses ``same'' padding and is followed by $2\times2$ max pooling, except Conv D.
+
+(a) Count the parameters of each layer and the total. [8]\newline (b) Give the output shape after each layer. [6]\newline (c) How many parameters would a single dense layer from the flattened input to 64 units need? Comment. [4]\newline (d) What does the $1\times1$ convolution do? [2]\end{prob}
+
+\begin{soln}\textbf{(a)} Conv A $(27+1)\times32=896$; Conv B $(288+1)\times64=18{,}496$; Conv C $(576+1)\times128=73{,}856$; Conv D $(128+1)\times64=8{,}256$; dense $64\times6+6=390$. Total $\mathbf{101{,}894}$.
+
+\textbf{(b)} $128^2\times32\to$ pool $64^2\times32$; $64^2\times64\to32^2\times64$; $32^2\times128\to16^2\times128$; Conv D $16^2\times64$; GAP $64$; dense $6$.
+
+\textbf{(c)} $128\times128\times3\times64+64=\mathbf{3{,}145{,}792}$: about 31 times the whole CNN, for one layer that ignores locality and position tolerance.
+
+\textbf{(d)} It mixes channels at each pixel without looking at neighbours, here halving 128 channels to 64 cheaply before pooling (as in GoogLeNet's Inception modules).\end{soln}
+
+\needspace{8\baselineskip}\subsection{Problem 4: Receptive fields \normalfont\small\color{GreyN}(20 marks)}
+
+\begin{prob}Use $r_\ell=r_{\ell-1}+(k_\ell-1)j_{\ell-1}$ and $j_\ell=j_{\ell-1}s_\ell$, starting from $r_0=j_0=1$.
+
+(a) Compute $r$ and $j$ after each layer of: conv $3\times3$ s1, conv $3\times3$ s1, pool $2\times2$ s2, conv $3\times3$ s1, pool $2\times2$ s2, conv $3\times3$ s1. [8]\newline (b) Do the same for the lecture's SAR CNN (conv, pool, conv, pool, conv, pool). Does a unit after Pool3 ``see'' the whole $64\times64$ chip? How does the classifier still use the whole chip? [8]\newline (c) Why do designers prefer two $3\times3$ convolutions to one $5\times5$? [4]\end{prob}
+
+\begin{soln}\textbf{(a)} conv: $r=3,j=1$; conv: $r=5,j=1$; pool: $r=5+1\times1=6,j=2$; conv: $r=6+2\times2=10,j=2$; pool: $r=10+1\times2=12,j=4$; conv: $r=12+2\times4=\mathbf{20}$, $j=4$.
+
+\textbf{(b)} Conv1 $r=3$; Pool1 $r=4,j=2$; Conv2 $r=8$; Pool2 $r=10,j=4$; Conv3 $r=18$; Pool3 $r=\mathbf{22},j=8$. A single unit sees only $22\times22$ pixels, not the whole chip. Global average pooling then averages the $8\times8$ grid of such units, which together tile the chip, so the classifier draws on every region.
+
+\textbf{(c)} Same $5\times5$ receptive field, fewer parameters ($2\times9C^2=18C^2$ against $25C^2$) and an extra ReLU, hence more non-linearity: the VGG design principle.\end{soln}
+
+\needspace{8\baselineskip}\subsection{Problem 5: Evaluation brief for a SAR recogniser \normalfont\small\color{GreyN}(20 marks)}
+
+\begin{prob}A vendor's CNN reports 97\% accuracy on SAR chips collected at the same depression angle as its training data. Your test at a new angle gives correct counts T-72 180/200, BMP-2 150/200, ZSU-23-4 120/200.
+
+(a) Compute per-class recall and overall accuracy at the new angle. [4]\newline (b) In an area with 20 T-72s and 1,000 other vehicles, the system flags T-72 with recall 0.90 and false-positive rate 2\% on other vehicles. Compute true flags, false flags and precision. [6]\newline (c) Write a five-point brief for the commander on what must be checked before fielding. [10]\end{prob}
+
+\begin{soln}\textbf{(a)} Recall 90\%, 75\%, 60\%; overall $450/600=\mathbf{75\%}$, against the reported 97\%. The air-defence vehicle, perhaps the most important, degrades most.
+
+\textbf{(b)} True flags $0.9\times20=18$; false flags $0.02\times1{,}000=20$; precision $18/38=\mathbf{47\%}$. More than half the T-72 calls are wrong, because targets are rare (the base-rate effect of Lecture 1).
+
+\textbf{(c)} (1) \textbf{Operating conditions:} test on new angles, vehicle configurations, camouflage, terrain and decoys; report per-class recall, not one accuracy figure. (2) \textbf{Base rate:} state expected precision at realistic target densities. (3) \textbf{Calibration:} check that a 0.9 softmax means right about 90\% of the time; flag low-confidence calls. (4) \textbf{Shortcuts:} Grad-CAM saliency should highlight the vehicle, not background or sensor artefacts. (5) \textbf{Adversarial robustness and oversight:} test against physical patches and spoofing; keep an analyst confirming every high-consequence call.\end{soln}
+
+\needspace{8\baselineskip}\subsection{Problem 6 (bonus): Gradients through max pooling and a shared kernel \normalfont\small\color{GreyN}(20 marks)}
+
+\begin{prob}A 1-D layer: input $x=(2,-1,3,0,1)$, kernel $(k_0,k_1)=(1,2)$, $y_i=k_0x_i+k_1x_{i+1}$, then ReLU, then max pooling of size 2, stride 2 on the first four outputs. The errors arriving at the two pooled outputs are $(1,-2)$.
+
+(a) Compute $y$, the ReLU output and the pooled output. [4]\newline (b) Route the errors back through pooling and ReLU to get $\delta_i=\partial L/\partial y_i$. [5]\newline (c) Compute $\partial L/\partial k_0$, $\partial L/\partial k_1$ and $\partial L/\partial b$. [6]\newline (d) Compute $\partial L/\partial x_i$ for all five inputs, and the updated kernel with $\eta=0.1$. [5]\end{prob}
+
+\begin{soln}\textbf{(a)} $y=(2-2,\ -1+6,\ 3+0,\ 0+2)=(0,5,3,2)$; ReLU leaves it $(0,5,3,2)$; pooling over $(0,5)$ and $(3,2)$ gives $(5,3)$.
+
+\textbf{(b)} Max pooling sends each error only to the winner: $\delta=(0,1,-2,0)$. ReLU passes it where $y>0$ ($y_1=5$, $y_2=3$), so $\delta=(0,1,-2,0)$.
+
+\textbf{(c)} Weight sharing sums over positions: $\partial L/\partial k_0=\sum\delta_ix_i=1(-1)+(-2)(3)=\mathbf{-7}$; $\partial L/\partial k_1=\sum\delta_ix_{i+1}=1(3)+(-2)(0)=\mathbf{3}$; $\partial L/\partial b=\sum\delta_i=\mathbf{-1}$.
+
+\textbf{(d)} $x_0$: $\delta_0k_0=0$. $x_1$: $\delta_0k_1+\delta_1k_0=1$. $x_2$: $\delta_1k_1+\delta_2k_0=2-2=0$. $x_3$: $\delta_2k_1+\delta_3k_0=-4$. $x_4$: $\delta_3k_1=0$. So $\partial L/\partial x=(0,1,0,-4,0)$. Update: $k\leftarrow(1+0.7,\ 2-0.3)=(\mathbf{1.7},\ \mathbf{1.7})$.\end{soln}
+
+\end{document}

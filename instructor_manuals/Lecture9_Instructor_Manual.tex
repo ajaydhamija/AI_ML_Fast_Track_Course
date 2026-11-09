@@ -1,0 +1,390 @@
+\documentclass[11pt]{article}
+\usepackage{notes}
+\definecolor{AccN}{HTML}{00897B}
+\fancyhead[L]{\small\color{NavyN}\nouppercase{\leftmark}}\fancyhead[R]{\small\color{GreyN}Instructor Manual --- Lecture 9}
+\usepackage{longtable,multicol,needspace}
+\setlength{\emergencystretch}{2em}
+\newtcolorbox{instr}[1]{nb,colback=AccN!6,colframe=AccN,title={#1}}
+\newtcolorbox{prob}{nb,colback=BluN!5,colframe=BluN,title={Problem statement}}
+\newtcolorbox{soln}{nb,colback=GrnN!5,colframe=GrnN,title={Model solution and marking points}}
+\newtcolorbox{sayit}{nb,colback=white,colframe=NavyN,title={Read aloud to students}}
+\newtcolorbox{live}[1]{nb,colback=AccN!4,colframe=AccN,title={#1}}
+\providecommand{\cn}[1]{\textbf{(#1)}}
+\begin{document}
+\begin{titlepage}\centering\vspace*{2.2cm}
+{\color{AccN}\large\bfseries LECTURE 9\par}\vspace{0.6cm}
+{\color{NavyN}\Huge\bfseries Transformers \& Attention\par}\vspace{0.6cm}
+{\color{AccN}\rule{0.7\textwidth}{1.5pt}}\par\vspace{0.6cm}
+{\LARGE Instructor Manual\par}\vspace{0.4cm}
+{\large\begin{minipage}{0.85\textwidth}\centering Embeddings, positional encoding, queries, keys and values, multi-head attention --- and the architecture of \emph{Attention Is All You Need}\end{minipage}\par}\vspace{2cm}
+{\large AK DHAMIJA, Researcher \& Instructor, AI \& Machine Learning\par}\vspace{0.2cm}
+{\normalsize \href{mailto:dhamija.ak@gmail.com}{dhamija.ak@gmail.com} \quad\textbullet\quad 9811453163\par}\vspace{0.3cm}
+{Unit 4: Simulation Strategies in Warfare --- AI \& Machine Learning in Warfare\par}\vfill
+\begin{tcolorbox}[colback=NavyN!4,colframe=NavyN,boxrule=0.6pt,arc=2pt,width=0.9\textwidth]\small
+\textbf{This manual contains:} the 45-minute session plan with timings; a slide-by-slide teaching guide for all 49 slides; key messages, facilitation tips, anticipated questions with model answers, misconceptions and in-class activities; live demonstrations with the interactive studio; consistency notes on the source material; the complete quiz answer key with rationale and scoring rules; and the assignment with marking scheme and full model solutions.
+\end{tcolorbox}
+\end{titlepage}
+\tableofcontents\newpage
+
+
+\needspace{12\baselineskip}\section{Lecture at a Glance}
+
+\begin{center}\small\renewcommand{\arraystretch}{1.25}\begin{tabularx}{\textwidth}{@{}>{\bfseries}p{3.3cm}>{\raggedright\arraybackslash}X@{}}\toprule
+
+\textcolor{NavyN}{Lecture}&9 --- Transformers \& Attention\\
+\textcolor{NavyN}{Duration}&45 minutes: 5 min opening Q\&A, 30 min teaching, 10 min auto-quiz\\
+\textcolor{NavyN}{Slides}&49 (Beamer PDF, 16:9), 11 sections\\
+\textcolor{NavyN}{Prerequisite}&Lecture~8; students should have attempted its quiz and assignment.\\
+\textcolor{NavyN}{Student materials}&\texttt{Lecture9\_Slides\_Beamer.pdf}; \texttt{Lecture9\_Reference\_Text.pdf}; \texttt{Lecture9\_Quiz.html}; \texttt{Lecture9\_Answers\_Assignment.html} (release after the quiz)\\
+\textcolor{NavyN}{Interactive studio}&\texttt{Lecture9\_Attention\_Workbench.html} (live demonstrations in Section~\ref{sec:live})\\
+\textcolor{NavyN}{Assessment}&Auto-quiz: 15 MCQs, 40~s each, $+1/-0.25$. Assignment: 5 problems, 100 marks, plus a 20-mark bonus problem.\\\bottomrule\end{tabularx}\end{center}
+
+\subsection*{Overview}Lecture~9 gives the technical treatment of Transformers, following Vaswani et al.\ (2017). Part~1 explains why recurrence was dropped (Table~1 of the paper), works word-vector arithmetic (tiger $-$ man $+$ woman $\to$ tigress, cosine 0.991), derives the sinusoidal positional encoding with a $d_{\text{model}}=4$ example and the rotation argument for relative position, and computes scaled dot-product attention by hand on ``enemy tank advances'' ($3$ tokens, $d_k=2$), including the causal mask and the variance argument for $\sqrt{d_k}$. Part~2 adds a second head, concatenation and Add \& Norm on the same sentence, then walks every block of Figure~1 of the paper with the base model's shapes, the three uses of attention, the paper's settings and BLEU results, the three model families, next-token generation and training, and defence applications with their limits. It is the densest deck in the course and may be split over two sessions.
+
+\subsection*{Learning outcomes}By the end of the lecture students should be able to:\begin{enumerate}\item Explain why self-attention replaced recurrence, using the complexity, sequential-operations and path-length comparison.\item Compute word-vector arithmetic with cosine similarity and the sinusoidal positional encoding, and explain the rotation property.\item Compute scaled dot-product attention by hand, with and without a causal mask, and justify the $\sqrt{d_k}$ scaling.\item Run a two-head example with concatenation and Add \& Norm, and count multi-head parameters.\item Explain every block of Figure~1 of Vaswani et al., distinguish BERT, GPT and encoder--decoder models, and assess defence uses.\end{enumerate}
+
+\subsection*{Syllabus mapping}\begin{itemize}\item Deep learning for language and sequences --- \textbf{Transformers and attention} (technical treatment)\end{itemize}
+
+\needspace{12\baselineskip}\section{Session Plan (45 Minutes)}
+
+\begin{center}\begin{tikzpicture}[x=0.3444cm,y=1cm]
+\fill[AmbN!40](0,0)rectangle(5,1);\node[font=\scriptsize\bfseries,align=center]at(2.5,0.5){Q\&A\\recap};
+\fill[AccN!25](5.00,0)rectangle(6.00,1);\draw[white,thick](5.00,0)--(5.00,1);
+\fill[NavyN!18](6.00,0)rectangle(8.50,1);\draw[white,thick](6.00,0)--(6.00,1);
+\node[font=\tiny,rotate=90,anchor=center]at(7.25,0.5){\parbox{0.9cm}{\centering \S2}};
+\fill[AccN!25](8.50,0)rectangle(11.50,1);\draw[white,thick](8.50,0)--(8.50,1);
+\node[font=\tiny,rotate=90,anchor=center]at(10.00,0.5){\parbox{0.9cm}{\centering \S3}};
+\fill[NavyN!18](11.50,0)rectangle(15.50,1);\draw[white,thick](11.50,0)--(11.50,1);
+\node[font=\tiny,rotate=90,anchor=center]at(13.50,0.5){\parbox{0.9cm}{\centering \S4}};
+\fill[AccN!25](15.50,0)rectangle(17.50,1);\draw[white,thick](15.50,0)--(15.50,1);
+\node[font=\tiny,rotate=90,anchor=center]at(16.50,0.5){\parbox{0.9cm}{\centering \S5}};
+\fill[NavyN!18](17.50,0)rectangle(22.00,1);\draw[white,thick](17.50,0)--(17.50,1);
+\node[font=\tiny,rotate=90,anchor=center]at(19.75,0.5){\parbox{0.9cm}{\centering \S6}};
+\fill[AccN!25](22.00,0)rectangle(24.50,1);\draw[white,thick](22.00,0)--(22.00,1);
+\node[font=\tiny,rotate=90,anchor=center]at(23.25,0.5){\parbox{0.9cm}{\centering \S7}};
+\fill[NavyN!18](24.50,0)rectangle(32.00,1);\draw[white,thick](24.50,0)--(24.50,1);
+\node[font=\tiny,rotate=90,anchor=center]at(28.25,0.5){\parbox{0.9cm}{\centering \S8}};
+\fill[AccN!25](32.00,0)rectangle(33.00,1);\draw[white,thick](32.00,0)--(32.00,1);
+\fill[NavyN!18](33.00,0)rectangle(34.00,1);\draw[white,thick](33.00,0)--(33.00,1);
+\fill[AccN!25](34.00,0)rectangle(35.00,1);\draw[white,thick](34.00,0)--(34.00,1);
+\fill[RedN!30](35,0)rectangle(45,1);\node[font=\scriptsize\bfseries,align=center]at(40,0.5){Auto-quiz\\15 Q $\times$ 40 s};
+\draw[NavyN](0,0)rectangle(45,1);
+\foreach \tt in {0,5,10,15,20,25,30,35,40,45}{\draw[NavyN](\tt,0)--(\tt,-0.12);\node[font=\tiny,below]at(\tt,-0.12){\tt};}
+\node[font=\scriptsize,below]at(22.5,-0.45){minutes};
+\end{tikzpicture}\end{center}
+
+\begin{center}\small\renewcommand{\arraystretch}{1.2}\begin{tabularx}{\textwidth}{@{}l l X r@{}}\toprule\textbf{Clock} & \textbf{Slides} & \textbf{Segment} & \textbf{Min}\\\midrule
+
+0:00--5:00 & --- & \textbf{Opening Q\&A and recap} (see prompts below) & 5\\
+
+5:00--6:00 & 2--3 & 1. Overview (2 slides) & 1\\
+
+6:00--8:30 & 4--7 & 2. Why Transformers (4 slides) & 2.5\\
+
+8:30--11:30 & 8--12 & 3. Tokens \& Embeddings (5 slides) & 3\\
+
+11:30--15:30 & 13--18 & 4. Positional Encoding (6 slides) & 4\\
+
+15:30--17:30 & 19--21 & 5. Query, Key, Value (3 slides) & 2\\
+
+17:30--22:00 & 22--28 & 6. Worked Example (7 slides) & 4.5\\
+
+22:00--24:30 & 29--32 & 7. Multi-Head Attention (4 slides) & 2.5\\
+
+24:30--32:00 & 33--43 & 8. The Paper's Architecture (11 slides) & 7.5\\
+
+32:00--33:00 & 44--45 & 9. Generation \& Training (2 slides) & 1\\
+
+33:00--34:00 & 46--47 & 10. Defence Applications (2 slides) & 1\\
+
+34:00--35:00 & 48--49 & 11. Summary (2 slides) & 1\\
+
+35:00--45:00 & --- & \textbf{Auto-quiz} (instructions 1 min, 15 questions $\times$ 40 s = 10 min of answering; collect scores) & 10\\\bottomrule\end{tabularx}\end{center}
+
+Slide 1 is the title slide and is shown while students settle. The teaching segment covers 48 content slides in 30 minutes, an average pace of 1.6 slides per minute. 
+
+\begin{pitfall}{pace}This pace is only achievable if most survey slides get one sentence each. See the facilitation tips for a fast path through a single session and a two-session alternative.\end{pitfall}
+
+\begin{instr}{Opening Q\&A prompts (first 5 minutes)}\begin{enumerate}\item From Lecture~8: in the radio-net analogy, what are the query, the key and the value?\item Why is attention order-blind, and what is added to fix it?\item What does the causal mask stop the decoder from doing?\end{enumerate}Take two or three answers per prompt; correct misconceptions briefly and note any topic that needs revisiting.\end{instr}
+
+\needspace{12\baselineskip}\section{Slide-by-Slide Teaching Guide}
+
+Each subsection gives the slide range, the suggested time, what to emphasise, and the slide titles in order. Numbers refer to pages of the Beamer PDF.
+
+\needspace{8\baselineskip}\subsection{1. Overview \normalfont\small\color{GreyN}(slides 2--3, about 1 min)}
+
+\textbf{Teaching note.} Objectives and the two-part structure; the big picture from tokens to output.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}2 & Learning Objectives \& Session Structure\\
+3 & The Big Picture in One Slide\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{2. Why Transformers \normalfont\small\color{GreyN}(slides 4--7, about 2.5 min)}
+
+\textbf{Teaching note.} RNN limits (sequential, forgetting, bottleneck); one matrix product computes all queries; Table~1 of the paper; the price of $n^2$; the analyst resolving ``it''.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}4 & Why Recurrent Networks Struggled\\
+5 & Running Example: Reading Every Word at the Same Time\\
+6 & The Paper's Own Comparison (Vaswani et al., Table 1)\\
+7 & The Intuition: An Intelligence Analyst Reading a Report\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{3. Tokens \& Embeddings \normalfont\small\color{GreyN}(slides 8--12, about 3 min)}
+
+\textbf{Teaching note.} Byte-pair tokens; the embedding matrix; directions carry meaning; the worked analogy table (tigress 0.991, queen 0.999, woman 0.995); word space versus context space.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}8 & Step 1 --- Tokenisation: Text to Numbers\\
+9 & Step 2 --- Embeddings: Placing Words in a Meaning Space\\
+10 & Directions Carry Meaning: \emph{man}$\,\to\,$\emph{woman} $\approx$ \emph{tiger}$\,\to\,$\emph{tigress}\\
+11 & Worked Analogy: Computing \emph{tiger} $-$ \emph{man} $+$ \emph{woman}\\
+12 & From Word Space to Context Space\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{4. Positional Encoding \normalfont\small\color{GreyN}(slides 13--18, about 4 min)}
+
+\textbf{Teaching note.} Order-blindness; requirements for a position code; the sinusoidal formula and frequency table; the $d_{\text{model}}=4$ example and $E+P$; the heat-map; relative position as rotation (check: $(\sin5,\cos5)$); how positions change the attention weights.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}13 & Step 3 --- Why Attention Needs Position Information\\
+14 & The Sinusoidal Positional Encoding\\
+15 & Running Example: Positional Encoding for ``enemy tank advances''\\
+16 & The Full Encoding as a Picture: 50 Positions $\times$ 64 Dimensions\\
+17 & Why Sinusoids? Relative Position Is a Rotation\\
+18 & Running Example: Positions Change What Attention Sees\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{5. Query, Key, Value \normalfont\small\color{GreyN}(slides 19--21, about 2 min)}
+
+\textbf{Teaching note.} The intelligence-archive analogy; $Q=XW^Q$, $K=XW^K$, $V=XW^V$ and their shapes; Figure~2 (left) read bottom to top.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}19 & Query, Key, Value: The Intelligence-Archive Analogy\\
+20 & Where Do $Q$, $K$ and $V$ Come From?\\
+21 & Scaled Dot-Product Attention (Vaswani et al., Figure 2, left)\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{6. Worked Example \normalfont\small\color{GreyN}(slides 22--28, about 4.5 min)}
+
+\textbf{Teaching note.} The worked example: $Q$, $K$, $V$; the scores $S$ and $S/\sqrt2$; the softmax of row enemy, $(0.0454,\ 0.7679,\ 0.1867)$; the output $Z=AV$, with row advances equal to $(0.5641,\ 1.5760)$; why divide by $\sqrt{d_k}$; the causal mask.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}22 & Worked Example: Set-Up (``enemy tank advances'')\\
+23 & Worked Example --- Step 1: Queries, Keys and Values\\
+24 & Worked Example --- Step 2: Scores and Scaling\\
+25 & Worked Example --- Step 3: Softmax $\rightarrow$ Attention Weights\\
+26 & Worked Example --- Step 4: Blend the Values, $Z=AV$\\
+27 & Why Divide by $\sqrt{d_k}$?\\
+28 & Masked (Causal) Self-Attention: No Peeking at the Future\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{7. Multi-Head Attention \normalfont\small\color{GreyN}(slides 29--32, about 2.5 min)}
+
+\textbf{Teaching note.} Figure~2 (right); head~2 with $W^Q_2=W^K_2$; concatenation and $W^O$; what heads learn and why heat-maps are hypotheses.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}29 & Multi-Head Attention (Vaswani et al., Figure 2, right)\\
+30 & Running Example: A Second Head Asks a Different Question\\
+31 & Running Example: Concatenate the Heads and Project with $W^O$\\
+32 & What Different Heads Learn in Real Models (Illustrative)\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{8. The Paper's Architecture \normalfont\small\color{GreyN}(slides 33--43, about 7.5 min)}
+
+\textbf{Teaching note.} Figure~1 block by block: following one English--German sentence with shapes; embeddings and positions; the encoder layer and FFN; Add \& Norm worked on the running example (enemy row $(-0.998,1.094,-0.998,0.901)$); shifted-right decoder input and masking; cross-attention; Linear and softmax; three uses of attention; settings and results; the three model families.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}33 & The Transformer of \emph{Attention Is All You Need} (Figure 1)\\
+34 & Following One Sentence Through Figure 1\\
+35 & \cn{1}\ \cn{2}\ Input Embedding and Positional Encoding\\
+36 & \cn{3}\ The Encoder Layer\\
+37 & Running Example: Add \& Norm After Multi-Head Attention\\
+38 & \cn{4}\ Decoder Input: ``Outputs (Shifted Right)'' and Masked Attention\\
+39 & \cn{5}\ Encoder--Decoder (Cross) Attention\\
+40 & \cn{6}\ Linear + Softmax: Output Probabilities\\
+41 & Three Uses of Attention in One Model\\
+42 & The Paper's Settings and Results\\
+43 & Three Families of Transformer Models\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{9. Generation \& Training \normalfont\small\color{GreyN}(slides 44--45, about 1 min)}
+
+\textbf{Teaching note.} Next-token generation and temperature; pre-training loss ($-\ln0.60=0.51$); backpropagation through the whole stack; fine-tuning, instruction tuning, in-context learning.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}44 & How a GPT-Style Model Writes: Next-Token Prediction\\
+45 & How Transformers Are Trained\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{10. Defence Applications \normalfont\small\color{GreyN}(slides 46--47, about 1 min)}
+
+\textbf{Teaching note.} Text and intelligence, Vision Transformers, sensor fusion, wargaming; limits to brief commanders; misconceptions.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}46 & Transformers in Defence and Wargaming\\
+47 & Common Misconceptions\\\end{tabularx}\end{center}
+
+\needspace{8\baselineskip}\subsection{11. Summary \normalfont\small\color{GreyN}(slides 48--49, about 1 min)}
+
+\textbf{Teaching note.} Summary and quick check; look-ahead to reinforcement learning, where the DQN is a neural network trained by backpropagation.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.1}\begin{tabularx}{\textwidth}{@{}r X@{}}48 & Summary and Quick Check\\
+49 & Looking Ahead --- Lecture 10: Reinforcement Learning Part 1 --- Q-Learning \& MDPs\\\end{tabularx}\end{center}
+
+\needspace{12\baselineskip}\section{Key Messages}Students should leave the room able to state these in their own words:\begin{keypoint}\begin{enumerate}\item Self-attention links every token to every other in one step and trains in parallel; the price is $n^2$ cost.\item Sinusoidal positions are bounded, unique and turn a shift into a fixed rotation, so relative position is easy to learn.\item $\text{softmax}(QK^{\mathsf T}/\sqrt{d_k})V$: match, scale, normalise, blend; the scaling keeps softmax out of saturation.\item Multi-head attention asks several questions at the cost of one; Add \& Norm keeps deep stacks trainable; the FFN processes each token.\item Encoder-only, decoder-only and encoder--decoder models share one block and differ in masking, wiring and training objective.\end{enumerate}\end{keypoint}
+
+\needspace{12\baselineskip}\section{Facilitation Tips}\begin{itemize}\item Run the deck as two sessions where possible: Part~1 to the end of the worked example, Part~2 from multi-head attention.\item Use the Attention Workbench in Demo~2 to let students change one entry of $W^K$ and predict which weight moves before revealing it.\item Keep Figure~1 projected while discussing the three model families: point to the parts each family uses.\end{itemize}
+
+\needspace{12\baselineskip}\section{Anticipated Questions and Model Answers}
+
+\begin{question}{anticipated question}\textbf{Q:} Why sines and cosines rather than learned positions?\par\smallskip\textbf{A:} The paper found nearly identical results with learned positions and kept sinusoids because they may extrapolate to longer sequences; many later models learn them.\end{question}
+
+\begin{question}{anticipated question}\textbf{Q:} Why does the decoder need both masked self-attention and cross-attention?\par\smallskip\textbf{A:} Masked self-attention lets it use what it has written so far without seeing the future; cross-attention lets it consult the source sentence.\end{question}
+
+\begin{question}{anticipated question}\textbf{Q:} How many parameters are in one attention layer of the base model?\par\smallskip\textbf{A:} $4\times512^2+4\times512=1{,}050{,}624$, independent of the number of heads.\end{question}
+
+\needspace{12\baselineskip}\section{Common Misconceptions}\begin{center}\small\renewcommand{\arraystretch}{1.35}\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}\toprule\textbf{Misconception} & \textbf{Correction}\\\midrule``Positional encoding is concatenated to the embedding.'' & It is added element by element.\\
+``$Q$, $K$ and $V$ are three different inputs.'' & In self-attention they are three projections of the same $X$.\\
+``Softmax picks the output word.'' & It gives a distribution; greedy decoding, beam search or sampling picks.\\\bottomrule\end{tabularx}\end{center}
+
+\needspace{12\baselineskip}\section{In-Class Activities and Discussion Prompts}\label{sec:act}\begin{itemize}\item \textbf{Shape bookkeeping race:} teams write the shape of every tensor in Figure~1 for a 10-word source and 12-word target with the base model; first correct team wins.\item \textbf{Family choice:} for six defence text tasks, teams choose encoder-only, decoder-only or encoder--decoder and justify in one sentence each.\end{itemize}
+
+\needspace{12\baselineskip}\section{Run It Live: Studio Demonstrations}\label{sec:live}
+
+Project \texttt{Lecture9\_Attention\_Workbench.html} (it is a single HTML file and runs offline in any browser; every result updates as an input changes). Each demonstration below follows the same rhythm: \textbf{set} the inputs, \textbf{ask} the class to commit to a prediction (a show of hands or a one-word answer), then \textbf{reveal} the result and \textbf{land} the point. The numbers are exactly what the page shows for the settings given; simulations use fixed random seeds, so they repeat every time. The 45-minute plan has little slack: choose the one demonstration marked \emph{first choice} for class, and use the others in a tutorial, a second session, or as homework with the drill cards at the bottom of the page.
+
+\begin{live}{Demo 1: Positions as a rotation (about 2 min, with \S4 Positional Encoding)}\textbf{Set.} Demo~1: $d=64$, position 1, offset 5.\par\smallskip\textbf{Ask.} ``Will the dot product of the codes for positions 1 and 6 match that for positions 30 and 35?''\par\smallskip\textbf{Reveal.} Both \textbf{23.504}: each pair contributes $\cos(\omega_ik)$, which depends only on $k$.\par\smallskip\textbf{Land the point.} A shift is a fixed rotation, so relative position is easy to learn; every value stays in $[-1,1]$.\end{live}
+
+\begin{live}{Demo 2: Attention on enemy tank advances (about 4 min, with \S6 Worked Example) --- \emph{first choice}}\textbf{Set.} Demo~2 at the lecture values. Then tick \textsf{causal mask}; then untick \textsf{divide by $\sqrt{d_k}$}.\par\smallskip\textbf{Ask.} ``With the mask, what can enemy attend to? Without scaling, will the rows get sharper or flatter?''\par\smallskip\textbf{Reveal.} Unmasked: enemy$\to$tank 76.8\%, tank$\to$enemy 57.6\%, advances$\to$tank 57.6\%, as on the slides. Masked: enemy$\to$enemy 100\%, tank$\to$enemy 80.4\%, advances unchanged. Unscaled: 86.7\%, 66.5\%, 66.5\%: sharper.\par\smallskip\textbf{Land the point.} Every number on the slides can be reproduced and varied; change one entry of $W^K$ and predict before you look.\end{live}
+
+\begin{live}{Demo 3: Two heads, then Add \& Norm (about 2 min, with \S8 The Paper's Architecture)}\textbf{Set.} Demo~3 at the lecture values (head~2 with $W^Q_2=W^K_2$).\par\smallskip\textbf{Ask.} ``After layer normalisation, what are the mean and spread of each row?''\par\smallskip\textbf{Reveal.} Mean 0 and standard deviation 1; the enemy row is $(-0.998,1.094,-0.998,0.901)$ from $\mu=1.5113$, $\sigma=0.2344$.\par\smallskip\textbf{Land the point.} Concatenation restores width $d$ so the residual can be added; normalisation keeps deep stacks stable.\end{live}
+
+\begin{live}{Demo 4: The price of context (about 2 min, with \S10 Defence Applications)}\textbf{Set.} Demo~4: $n=4{,}096$, $d=512$, 16 heads, 2 bytes.\par\smallskip\textbf{Ask.} ``How much memory do one layer's attention scores need?''\par\smallskip\textbf{Reveal.} \textbf{512 MiB} per layer; attention is 57.1\% of the multiply-adds, and dominates beyond $n=6d=3{,}072$.\par\smallskip\textbf{Land the point.} Long contexts are expensive: chunk, retrieve or use memory-efficient attention.\end{live}
+
+\needspace{12\baselineskip}\section{Quiz Administration and Answer Key}
+
+\begin{sayit}``You will now take a 15-question quiz. Each question has four options and exactly one correct answer. You have 40 seconds per question; the quiz advances automatically when time runs out. A correct answer scores $+1$, a wrong answer $-0.25$, and an unanswered question 0. The maximum is 15 and the minimum is $-3.75$. Because of the negative marking, guessing blindly among four options gains nothing on average --- answer when you can eliminate options. Your score and a full review appear at the end.''\end{sayit}
+
+\textbf{Delivery.} Open \texttt{Lecture9\_Quiz.html} on each student device (or project it and collect answers on paper). The page enforces the timer and computes the score with negative marking. Release \texttt{Lecture9\_Answers\_Assignment.html} only after all students have finished.
+
+\subsection*{Answer key}\begin{center}\small\renewcommand{\arraystretch}{1.3}\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}\hline \textbf{1} & \textbf{2} & \textbf{3} & \textbf{4} & \textbf{5} & \textbf{6} & \textbf{7} & \textbf{8} & \textbf{9} & \textbf{10} & \textbf{11} & \textbf{12} & \textbf{13} & \textbf{14} & \textbf{15}\\\hline C & A & B & D & A & C & B & A & D & B & C & A & D & A & C\\\hline\end{tabular}\end{center}
+
+\textbf{Interpreting scores.} 12 or more: secure command of the lecture. 9--11.75: good, review missed items. Below 9: revisit the reference text before the assignment. If more than half the class misses a question, revisit that point in the next lecture's opening Q\&A.
+
+\subsection*{Questions, options and rationale}
+
+{\small
+
+\noindent\textbf{Q1.} Per Vaswani et al.'s Table 1, the maximum path length between two tokens is $O(1)$ for self-attention and \_\_\_\_ for a recurrent layer.\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] $O(\log n)$\item[B.] $O(n^2)$\item[\textbf{C.}] \textbf{$O(n)$}~{\color{GrnN}$\checkmark$}\item[D.] $O(1)$\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} An RNN passes information one step at a time; attention links every pair directly.\par\medskip
+
+\noindent\textbf{Q2.} The price of self-attention's direct links is a per-layer cost that grows as:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[\textbf{A.}] \textbf{$n^2d$ in the sequence length $n$}~{\color{GrnN}$\checkmark$}\item[B.] $\log n$\item[C.] $d^3$\item[D.] It does not grow with $n$\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} Every token scores every token: doubling the context quadruples the score matrix.\par\medskip
+
+\noindent\textbf{Q3.} In the toy space, tiger $-$ man $+$ woman $=(-1.00,0.05,0.95,0.00)$. Its nearest word by cosine (inputs excluded) is:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] lioness\item[\textbf{B.}] \textbf{tigress}~{\color{GrnN}$\checkmark$}\item[C.] female\item[D.] queen\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} Cosines: tigress 0.991, lioness 0.967, female 0.789.\par\medskip
+
+\noindent\textbf{Q4.} The sinusoidal encoding uses frequencies $\omega_i=10000^{-2i/d_{\text{model}}}$. With $d_{\text{model}}=4$, the second pair has $\omega_1=$\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] 0.1\item[B.] 0.0001\item[C.] 1\item[\textbf{D.}] \textbf{0.01}~{\color{GrnN}$\checkmark$}\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} $10000^{-2/4}=10000^{-1/2}=0.01$.\par\medskip
+
+\noindent\textbf{Q5.} For $d_{\text{model}}=4$, the positional encoding of position 1 is about:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[\textbf{A.}] \textbf{$(0.8415,0.5403,0.0100,1.0000)$}~{\color{GrnN}$\checkmark$}\item[B.] $(1,1,1,1)$\item[C.] $(0,1,0,1)$\item[D.] $(0.5403,0.8415,1.0000,0.0100)$\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} $(\sin1,\cos1,\sin0.01,\cos0.01)$. Position 0 is $(0,1,0,1)$.\par\medskip
+
+\noindent\textbf{Q6.} Why does the paper say sinusoids let the model attend by relative position?\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] They are learned\item[B.] They are concatenated to the embedding\item[\textbf{C.}] \textbf{$PE_{pos+k}$ is a fixed rotation (linear map) of $PE_{pos}$ that depends only on $k$}~{\color{GrnN}$\checkmark$}\item[D.] They are always positive\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} The angle-addition formulas give a rotation matrix in $\omega k$ alone.\par\medskip
+
+\noindent\textbf{Q7.} In the worked example, $q_{\text{enemy}}=(2,0)$ and $k_{\text{tank}}=(2,0)$. The scaled score with $d_k=2$ is:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] 4\item[\textbf{B.}] \textbf{2.8284}~{\color{GrnN}$\checkmark$}\item[C.] 1.4142\item[D.] 2\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} $4/\sqrt2=2.8284$.\par\medskip
+
+\noindent\textbf{Q8.} Row enemy has scaled scores $(0,2.8284,1.4142)$. The attention weight on tank is about:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[\textbf{A.}] \textbf{0.768}~{\color{GrnN}$\checkmark$}\item[B.] 0.333\item[C.] 0.867\item[D.] 0.187\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} $16.9188/(1+16.9188+4.1133)=16.9188/22.0321=0.7679$.\par\medskip
+
+\noindent\textbf{Q9.} If query and key components are independent with mean 0 and variance 1, the dot product $q\cdot k$ has variance:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] 1\item[B.] $\sqrt{d_k}$\item[C.] $1/d_k$\item[\textbf{D.}] \textbf{$d_k$}~{\color{GrnN}$\checkmark$}\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} A sum of $d_k$ unit-variance terms; hence the division by $\sqrt{d_k}$.\par\medskip
+
+\noindent\textbf{Q10.} With the causal mask, the row for ``tank'' (scaled scores 1.4142 and 0 on enemy and tank) gets weights:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] $(0.576,0.140,0.284)$\item[\textbf{B.}] \textbf{$(0.804,0.196,0)$}~{\color{GrnN}$\checkmark$}\item[C.] $(0.5,0.5,0)$\item[D.] $(1,0,0)$\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} The future token is set to $-\infty$; renormalising $(4.113,1)$ gives 0.804 and 0.196.\par\medskip
+
+\noindent\textbf{Q11.} In the base transformer, $h=8$ heads with $d_k=d_v=64$ are concatenated into a vector of width:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] 64\item[B.] 8\item[\textbf{C.}] \textbf{512}~{\color{GrnN}$\checkmark$}\item[D.] 2048\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} $8\times64=512=d_{\text{model}}$; $W^O$ is $512\times512$.\par\medskip
+
+\noindent\textbf{Q12.} How many parameters (with biases) does one multi-head attention layer of the base model have?\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[\textbf{A.}] \textbf{$4\times512^2+4\times512=1{,}050{,}624$}~{\color{GrnN}$\checkmark$}\item[B.] $8\times64\times64=32{,}768$\item[C.] $2\times512\times2048=2{,}097{,}152$\item[D.] It depends on the number of heads\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} $W^Q,W^K,W^V,W^O$ are each $512\times512$ in total, independent of $h$.\par\medskip
+
+\noindent\textbf{Q13.} In encoder--decoder (cross) attention, block 5 of Figure 1, no mask is needed because:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] The decoder never sees the encoder\item[B.] Softmax ignores future words\item[C.] Queries come from the encoder\item[\textbf{D.}] \textbf{The whole source sentence is known before decoding starts}~{\color{GrnN}$\checkmark$}\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} Keys and values come from the encoder's output; only the target side has a ``future''.\par\medskip
+
+\noindent\textbf{Q14.} ``Outputs (shifted right)'' in Figure 1 means that during training the decoder input is:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[\textbf{A.}] \textbf{The correct target sentence moved one place right behind a start token}~{\color{GrnN}$\checkmark$}\item[B.] The source sentence reversed\item[C.] Random tokens\item[D.] The encoder output\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} Position $t$ predicts word $t$ while seeing only words before it (teacher forcing).\par\medskip
+
+\noindent\textbf{Q15.} A defence team needs to tag units, places and equipment in intercepted text. The most natural model family is:\begin{itemize}[leftmargin=2.2em,itemsep=0pt,topsep=1pt]\item[A.] Decoder-only (GPT-style)\item[B.] Encoder--decoder for translation\item[\textbf{C.}] \textbf{Encoder-only (BERT-style), using bidirectional context}~{\color{GrnN}$\checkmark$}\item[D.] A recurrent network\end{itemize}\noindent{\color{GreyN}\textit{Rationale:}} Tagging is understanding, not generation; bidirectional context helps each token's label.\par\medskip
+
+}
+
+\needspace{12\baselineskip}\section{Assignment: Marking Scheme and Model Solutions}
+
+\textbf{Instructions.} Five problems, 100 marks, plus a 20-mark bonus problem (Problem 6). Reference: Lecture 9 reference text.
+
+\begin{center}\small\renewcommand{\arraystretch}{1.25}\begin{tabularx}{0.85\textwidth}{@{}l X r@{}}\toprule\textbf{\#} & \textbf{Problem} & \textbf{Marks}\\\midrule1 & Sinusoidal positional encoding & 20\\
+2 & Scaled dot-product attention by hand & 20\\
+3 & Multi-head shapes and parameter counts & 20\\
+4 & Masking and cost & 20\\
+5 & BERT, GPT or encoder--decoder for a defence task & 20\\
+6 & Problem 6 (bonus): Add \& Norm by hand & 20\\\midrule & \textbf{Total} & \textbf{100} + 20 bonus\\\bottomrule\end{tabularx}\end{center}
+
+\begin{instr}{General marking guidance}\begin{itemize}
+\item Marks for each part are shown in square brackets in the problem statement.
+\item Award method marks for correct working even when an arithmetic slip carries through; deduct once for the slip, not again for its consequences.
+\item For interpretive parts, full marks need (i) the correct conclusion, (ii) the reason, and (iii) an operational implication or caveat.
+\item Answers that state a number without uncertainty, baseline or caveat where one is required lose a mark per part.
+\item Suggested deadline: one week after the lecture; return marked work before the next quiz on the same topic.
+\end{itemize}\end{instr}
+
+\needspace{8\baselineskip}\subsection{Problem 1: Sinusoidal positional encoding \normalfont\small\color{GreyN}(20 marks)}
+
+\begin{prob}Take $d_{\text{model}}=6$.
+
+(a) Compute the three frequencies $\omega_i=10000^{-2i/6}$. [3]\newline (b) Compute $PE_0,PE_1,PE_2,PE_3$ to four decimals. [8]\newline (c) Verify that $PE_1\cdot PE_3=PE_2\cdot PE_4$ by showing both equal $\sum_i\cos(2\omega_i)$, and evaluate it. [5]\newline (d) Why is $p_t=t$ a poor position code, and why might sinusoids extrapolate to longer inputs than learned vectors? [4]\end{prob}
+
+\begin{soln}\textbf{(a)} $\omega_0=1$, $\omega_1=10000^{-1/3}=0.046416$, $\omega_2=10000^{-2/3}=0.0021544$.
+
+\textbf{(b)} $PE_t=(\sin t,\cos t,\sin\omega_1t,\cos\omega_1t,\sin\omega_2t,\cos\omega_2t)$: $PE_0=(0,1,0,1,0,1)$; $PE_1=(0.8415,0.5403,0.0464,0.9989,0.0022,1.0000)$; $PE_2=(0.9093,-0.4161,0.0927,0.9957,0.0043,1.0000)$; $PE_3=(0.1411,-0.9900,0.1388,0.9903,0.0065,1.0000)$.
+
+\textbf{(c)} For each pair, $\sin a\sin b+\cos a\cos b=\cos(a-b)$, so $PE_p\cdot PE_{p+k}=\sum_i\cos(\omega_ik)$, which depends only on $k=2$: $\cos2+\cos0.0928+\cos0.0043=-0.4161+0.9957+1.0000=\mathbf{1.5795}$ for both.
+
+\textbf{(d)} $p_t=t$ is unbounded: at position 1,000 it would swamp the meaning in the embedding, and its scale depends on length. Sinusoids are bounded in $[-1,1]$ and defined for any position by the formula, with relative shifts as fixed rotations, whereas learned vectors exist only for positions seen in training.\end{soln}
+
+\needspace{8\baselineskip}\subsection{Problem 2: Scaled dot-product attention by hand \normalfont\small\color{GreyN}(20 marks)}
+
+\begin{prob}Three tokens with $X=\begin{pmatrix}1&1&0\\0&1&1\\1&0&1\end{pmatrix}$, $W^Q=\begin{pmatrix}1&0\\0&1\\1&1\end{pmatrix}$, $W^K=\begin{pmatrix}1&1\\0&1\\1&0\end{pmatrix}$, $W^V=\begin{pmatrix}2&0\\0&1\\1&1\end{pmatrix}$, $d_k=2$.
+
+(a) Compute $Q$, $K$ and $V$. [5]\newline (b) Compute $S=QK^{\mathsf T}$ and $S/\sqrt2$. [5]\newline (c) Compute the attention weights $A$ (four decimals). [6]\newline (d) Compute $Z=AV$. [4]\end{prob}
+
+\begin{soln}\textbf{(a)} $Q=\begin{pmatrix}1&1\\1&2\\2&1\end{pmatrix}$, $K=\begin{pmatrix}1&2\\1&1\\2&1\end{pmatrix}$, $V=\begin{pmatrix}2&1\\1&2\\3&1\end{pmatrix}$.
+
+\textbf{(b)} $S=\begin{pmatrix}3&2&3\\5&3&4\\4&3&5\end{pmatrix}$; $S/\sqrt2=\begin{pmatrix}2.1213&1.4142&2.1213\\3.5355&2.1213&2.8284\\2.8284&2.1213&3.5355\end{pmatrix}$.
+
+\textbf{(c)} Row 1: exponentials $(8.3421,4.1133,8.3421)$, sum $20.7975$: $(0.4011,0.1978,0.4011)$. Row 2: $(34.3133,8.3421,16.9188)$, sum $59.5742$: $(0.5760,0.1400,0.2840)$. Row 3: $(16.9188,8.3421,34.3133)$: $(0.2840,0.1400,0.5760)$.
+
+\textbf{(d)} $Z=\begin{pmatrix}2.2033&1.1978\\2.1440&1.1400\\2.4359&1.1400\end{pmatrix}$. E.g. row 3: $0.284(2,1)+0.14(1,2)+0.576(3,1)=(2.4359,1.1400)$.\end{soln}
+
+\needspace{8\baselineskip}\subsection{Problem 3: Multi-head shapes and parameter counts \normalfont\small\color{GreyN}(20 marks)}
+
+\begin{prob}BERT-base: $d_{\text{model}}=768$, $h=12$, feed-forward width 3,072, input of $n=128$ tokens.
+
+(a) Give $d_k$ and the shapes of $Q_i$, $K_i$, $V_i$, the score matrix of one head, the concatenation and the output. [6]\newline (b) How many attention scores are computed per layer? [3]\newline (c) Count the parameters of the attention sub-layer and of the feed-forward sub-layer. [7]\newline (d) Why must the output have the same width as the input? [4]\end{prob}
+
+\begin{soln}\textbf{(a)} $d_k=768/12=64$. $Q_i,K_i,V_i$: $128\times64$; scores per head $128\times128$; concatenation $128\times768$; after $W^O$ ($768\times768$): $128\times768$.
+
+\textbf{(b)} $12\times128\times128=\mathbf{196{,}608}$.
+
+\textbf{(c)} Attention: $4\times768^2+4\times768=\mathbf{2{,}362{,}368}$. Feed-forward: $2\times768\times3{,}072+3{,}072+768=\mathbf{4{,}722{,}432}$. The feed-forward layer holds two-thirds of the block.
+
+\textbf{(d)} So the output can be added to the input in the residual connection and so identical blocks can be stacked.\end{soln}
+
+\needspace{8\baselineskip}\subsection{Problem 4: Masking and cost \normalfont\small\color{GreyN}(20 marks)}
+
+\begin{prob}(a) Apply the causal mask to the scaled scores of Problem 2 and recompute $A$ and $Z$. Which row is unchanged? [8]\newline (b) By what factor does the number of attention scores grow when the context goes from 512 to 2,048 tokens? [4]\newline (c) A model has 16 heads and stores scores in 2-byte numbers. How much memory do one layer's score matrices need at 4,096 tokens? [4]\newline (d) Where in Figure 1 is the mask used, and where is it not, and why? [4]\end{prob}
+
+\begin{soln}\textbf{(a)} Row 1: $(1,0,0)$, $z_1=v_1=(2,1)$. Row 2: softmax of $(3.5355,2.1213)$: $(0.8044,0.1956,0)$, $z_2=(1.8044,1.1956)$. Row 3 sees everything and is unchanged: $(0.2840,0.1400,0.5760)$, $z_3=(2.4359,1.1400)$.
+
+\textbf{(b)} $(2048/512)^2=\mathbf{16}$ times.
+
+\textbf{(c)} $4{,}096^2\times16\times2=536{,}870{,}912$ bytes $=\mathbf{512}$ MiB per layer, before any other activations: why long contexts are expensive.
+
+\textbf{(d)} Used in the decoder's masked self-attention (block 4), so position $i$ cannot see later target words. Not used in encoder self-attention (the whole source is known) or in encoder--decoder attention (keys and values are the known source).\end{soln}
+
+\needspace{8\baselineskip}\subsection{Problem 5: BERT, GPT or encoder--decoder for a defence task \normalfont\small\color{GreyN}(20 marks)}
+
+\begin{prob}For each task choose a model family and justify it: (a) tagging units, places and equipment in intercepted messages; (b) drafting a SITREP from field notes; (c) translating captured documents. [12]\newline (d) For task (b), name two failure modes and a safeguard for each. [8]\end{prob}
+
+\begin{soln}\textbf{(a)} \textbf{Encoder-only (BERT-type).} Tagging is understanding: each token's label benefits from context on both sides, which the unmasked encoder provides; a small classification head sits on each token's vector.
+
+\textbf{(b)} \textbf{Decoder-only (GPT-type)}, or an encoder--decoder. Drafting is generation; a decoder trained to predict the next token, given the notes as a prompt, writes the report one token at a time.
+
+\textbf{(c)} \textbf{Encoder--decoder}, the original transformer's task: the encoder reads the source language bidirectionally; the decoder writes the target, consulting the source through cross-attention.
+
+\textbf{(d)} \textbf{Hallucination:} fluent invented details; safeguard: require each statement to cite its source note and have an officer verify before release. \textbf{Prompt injection or adversarial text} in the notes: safeguard: treat inputs as data, restrict output to the report template, and log inputs for audit. (Also acceptable: distribution shift to unfamiliar jargon, with fine-tuning and testing on unit data.)\end{soln}
+
+\needspace{8\baselineskip}\subsection{Problem 6 (bonus): Add \& Norm by hand \normalfont\small\color{GreyN}(20 marks)}
+
+\begin{prob}(a) A token's input is $x=(2,0,1,1)$ and its sub-layer output is $(0.5,1.5,-0.5,0.5)$. Compute $h=x+\text{Sublayer}(x)$, its mean, variance and standard deviation, and $\text{LN}(h)$ with $\gamma=1$, $\beta=0$. [8]\newline (b) Recompute with $\gamma=(1,1,2,2)$ and $\beta=(0,0,0.5,0.5)$. [4]\newline (c) Repeat (a) for $x=(1,3,0,2)$ and sub-layer output $(1,1,0,-2)$. [5]\newline (d) Why does a transformer normalise each token separately rather than over the batch? [3]\end{prob}
+
+\begin{soln}\textbf{(a)} $h=(2.5,1.5,0.5,1.5)$; mean $1.5$; deviations $(1,0,-1,0)$; variance $0.5$; s.d. $0.7071$. $\text{LN}(h)=(\mathbf{1.4142},\ \mathbf{0},\ \mathbf{-1.4142},\ \mathbf{0})$.
+
+\textbf{(b)} $\gamma\odot\text{LN}(h)+\beta=(1.4142,\ 0,\ -2.8284+0.5,\ 0+0.5)=(1.4142,\ 0,\ -2.3284,\ 0.5)$.
+
+\textbf{(c)} $h=(2,4,0,0)$; mean $1.5$; deviations $(0.5,2.5,-1.5,-1.5)$; variance $(0.25+6.25+2.25+2.25)/4=2.75$; s.d. $1.6583$. $\text{LN}(h)=(0.3015,\ 1.5076,\ -0.9045,\ -0.9045)$.
+
+\textbf{(d)} Sequences vary in length and padding, and at inference a single sequence may be processed alone; per-token statistics do not depend on the other examples in the batch, so training and inference behave identically.\end{soln}
+
+\end{document}
